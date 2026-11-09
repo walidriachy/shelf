@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: shelf:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Shelf</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="drag"></div>
+      <div class="brand"><span class="mark"></span>Shelf</div>
+      <nav id="cats" class="cats"></nav>
+      <button id="newCat" class="ghost small">+ New category</button>
+      <div class="side-foot">
+        <button id="syncBtn" class="sync" title="Sync now"><span class="dot"></span><span id="syncText">Local only</span></button>
+        <button id="settingsBtn" class="ghost small">Settings</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <form id="addForm" class="add">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <input id="addInput" placeholder="Paste a link and press Enter" autocomplete="off" spellcheck="false">
+        </form>
+        <div class="filter">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="filterInput" placeholder="Filter" autocomplete="off">
+        </div>
+        <button id="askBtn" class="primary">Ask</button>
+      </header>
+
+      <div class="head">
+        <h1 id="viewTitle">All links</h1>
+        <span id="count" class="muted"></span>
+        <div class="seg" id="sortSeg">
+          <button data-sort="new" class="on">Newest</button>
+          <button data-sort="az">A–Z</button>
+        </div>
+      </div>
+
+      <section id="grid" class="grid"></section>
+      <div id="empty" class="empty hidden">
+        <div class="empty-mark"></div>
+        <h2>Nothing on the shelf yet</h2>
+        <p>Paste a link above. Shelf reads the page, works out what it offers, and files it for you.</p>
+        <p class="muted small">Tip: copy a link anywhere and press <kbd id="kbd">⌘ ⇧ L</kbd> to save it without opening Shelf.</p>
+      </div>
+    </main>
+
+    <aside id="ask" class="ask">
+      <div class="ask-head">
+        <h3>Ask your shelf</h3>
+        <button id="askClose" class="icon" title="Close">✕</button>
+      </div>
+      <div id="chat" class="chat">
+        <div class="msg bot">Tell me what you're after, like <em>"website design inspiration"</em> or <em>"free AI image tools"</em>, and I'll pull it from what you saved.</div>
+      </div>
+      <form id="askForm" class="ask-form">
+        <input id="askInput" placeholder="I'm looking for…" autocomplete="off">
+        <button class="primary">Send</button>
+      </form>
+    </aside>
+  </div>
+
+  <dialog id="settings" class="modal">
+    <form method="dialog" id="settingsForm">
+      <h3>Settings</h3>
+
+      <section>
+        <h4>AI</h4>
+        <p class="muted small">Sorts new links, writes a short summary, and answers your questions. With AI off, Shelf sorts and searches by keyword.</p>
+        <label>Use
+          <select id="sProvider">
+            <option value="auto">Automatic (Claude if installed)</option>
+            <option value="claude">Claude, with my subscription</option>
+            <option value="replicate">Replicate</option>
+            <option value="none">Off, keywords only</option>
+          </select>
+        </label>
+        <div id="pClaude" class="sub">
+          <p id="sClaudeStatus" class="small"></p>
+          <label>Model
+            <select id="sClaudeModel">
+              <option value="haiku">Haiku (fastest, light on your limits)</option>
+              <option value="sonnet">Sonnet (smarter)</option>
+              <option value="opus">Opus (smartest, slowest)</option>
+            </select>
+          </label>
+          <label>Claude token (optional) <input id="sClaudeToken" type="password" placeholder="Leave empty to use the account Claude Code is signed in with" autocomplete="off"></label>
+          <p class="muted small">To use a different account, run <code>claude setup-token</code> in Terminal and paste the token here. <button type="button" id="sClaudeClear" class="linkish">Remove token</button></p>
+        </div>
+        <div id="pReplicate" class="sub">
+          <label>Replicate token <input id="sReplicate" type="password" placeholder="r8_…" autocomplete="off"></label>
+          <label>Model <input id="sModel" placeholder="meta/meta-llama-3-70b-instruct"></label>
+        </div>
+      </section>
+
+      <section>
+        <h4>Private pages</h4>
+        <p class="muted small">To let Shelf read and save your private Notion pages or Google Docs, sign in once here. This sign-in is only used by Shelf's reader on this computer.</p>
+        <div class="row gap"><button type="button" class="ghost" data-signin="https://www.notion.so/login">Sign in to Notion</button><button type="button" class="ghost" data-signin="https://accounts.google.com/">Sign in to Google</button></div>
+        <div class="row"><span class="muted small">Read every link again and refresh its saved copy and notes.</span><button type="button" id="sRedoAll" class="ghost small">Re-read all</button></div>
+      </section>
+
+      <section>
+        <h4>Backup &amp; sync</h4>
+        <p class="muted small">Turn on any of these. Each one works on its own, and you can use more than one.</p>
+
+        <div class="sub">
+          <div class="row"><b class="small">Library folder</b><span id="libWhere" class="pill-on"></span></div>
+          <p class="muted small">Where your links and exact copies are kept. Put it in iCloud Drive or Google Drive and that app backs everything up and keeps it the same on your other computers.</p>
+          <div id="libPlaces" class="places"></div>
+          <div class="row"><span id="libPath" class="muted small path"></span><button type="button" id="libShow" class="ghost small">Show</button></div>
+        </div>
+
+        <div class="sub">
+          <div class="row"><b class="small">Cloudflare R2 backup</b><span class="pill-free">10 GB free</span></div>
+          <p class="muted small">A full backup of your library (links and exact copies) in your own Cloudflare account. Cloudflare gives every account <b>10 GB of R2 storage for free</b>, about 5,000 saved links.</p>
+
+          <div id="r2Setup" class="r2steps">
+            <div class="r2step"><span class="num">1</span><div>
+              <button type="button" id="r2Open" class="ghost small">Open Cloudflare</button>
+              <p class="muted small">Sign in or make a free account. On the page that opens, check the permission reads <b>Workers R2 Storage · Edit</b>, then press <b>Continue to summary</b> → <b>Create Token</b> and copy it.<br>First time using R2? Open <b>R2</b> in the Cloudflare menu once and turn it on. It asks for a card, but nothing is charged under 10 GB.</p>
+            </div></div>
+            <div class="r2step"><span class="num">2</span><div>
+              <div class="inline"><input id="r2Token" type="password" placeholder="Paste the token here" autocomplete="off"><button type="button" id="r2Connect" class="primary small">Connect</button></div>
+              <label id="r2AccountWrap" class="hidden">Account ID <input id="r2AccountId" autocomplete="off" spellcheck="false" placeholder="From the R2 overview page"></label>
+            </div></div>
+          </div>
+
+          <div id="r2Done" class="hidden">
+            <p class="small"><span class="good">●</span> Connected to bucket <b id="r2BucketName"></b></p>
+          </div>
+
+          <div class="row"><span id="sR2Info" class="muted small"></span><span id="r2DoneBtns" class="hidden"><button type="button" id="sR2Now" class="ghost small">Back up now</button> <button type="button" id="r2Disconnect" class="ghost small">Disconnect</button></span></div>
+
+          <details id="r2Manual" class="manual"><summary class="muted small">Use my own R2 keys instead</summary>
+            <div class="r2grid">
+              <label>Account ID <input id="sR2Account" autocomplete="off" spellcheck="false"></label>
+              <label>Bucket <input id="sR2Bucket" autocomplete="off" spellcheck="false" placeholder="shelf-backup"></label>
+              <label>Access Key ID <input id="sR2Key" autocomplete="off" spellcheck="false"></label>
+              <label>Secret Access Key <input id="sR2Secret" type="password" autocomplete="off"></label>
+            </div>
+            <div class="row"><span></span><button type="button" id="sR2Test" class="ghost small">Save &amp; test</button></div>
+          </details>
+        </div>
+
+        <div class="sub">
+          <b class="small">GitHub Gist (links and text only)</b>
+          <p class="muted small">A light extra: keeps your links and their text in one private gist. Create a token at github.com/settings/tokens with only the <b>gist</b> scope.</p>
+          <label>GitHub token <input id="sGist" type="password" placeholder="ghp_…" autocomplete="off"></label>
+          <div class="row"><span id="sGistInfo" class="muted small"></span><button type="button" id="sSync" class="ghost small">Sync now</button></div>
+        </div>
+      </section>
+
+      <section>
+        <h4>Chrome extension</h4>
+        <p class="muted small">Paste this key into the extension's settings once.</p>
+        <div class="row"><code id="sKey"></code><button type="button" id="sCopy" class="ghost small">Copy</button></div>
+      </section>
+
+      <section>
+        <h4>Data</h4>
+        <div class="row"><span class="muted small">Download everything as JSON.</span><button type="button" id="sExport" class="ghost small">Export</button></div>
+      </section>
+
+      <div class="actions">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button id="sSave" value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="edit" class="modal">
+    <form method="dialog" id="editForm">
+      <h3>Edit link</h3>
+      <label>Title <input id="eTitle"></label>
+      <label>Category <select id="eCat"></select></label>
+      <label>Tags <input id="eTags" placeholder="comma separated"></label>
+      <label>Your note <textarea id="eNote" rows="3" placeholder="Why you saved it"></textarea></label>
+      <div class="actions">
+        <button type="button" id="eDelete" class="ghost danger">Delete</button>
+        <span class="grow"></span>
+        <button type="button" id="eRedo" class="ghost">Re-sort with AI</button>
+        <button value="cancel" class="ghost">Cancel</button>
+        <button value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="detail" class="modal wide">
+    <div class="dwrap">
+      <header class="dhead">
+        <div class="dsite"><img id="dFav" alt=""><span id="dHost"></span></div>
+        <button id="dClose" class="icon" title="Close">✕</button>
+      </header>
+      <h2 id="dTitle"></h2>
+      <div id="dOffline" class="offline hidden"></div>
+      <div class="dactions">
+        <button id="dOpen" class="primary">Open link</button>
+        <button id="dCopy" class="ghost">Open saved copy</button>
+        <button id="dEdit" class="ghost">Edit</button>
+        <button id="dRedo" class="ghost">Re-read</button>
+        <button id="dFolder" class="ghost">Show files</button>
+      </div>
+      <div id="dPills" class="meta"></div>
+      <p id="dSummary" class="dsummary"></p>
+      <div id="dOffers" class="kv"></div>
+      <div id="dTags" class="meta tags-all"></div>
+      <section id="dRelated" class="related">
+        <h4>Connected <span class="muted">· guides, PDFs, Notion pages or docs that go with this</span></h4>
+        <div id="dRelList" class="rel-list"></div>
+        <div class="rel-add">
+          <input id="dRelInput" autocomplete="off" placeholder="Paste a link (PDF, Notion, Google Drive…) or search what you’ve saved">
+          <div id="dRelSug" class="rel-sug hidden"></div>
+        </div>
+      </section>
+      <div class="dcols">
+        <div id="dUse"></div>
+        <div id="dPoints"></div>
+      </div>
+      <div class="tabs" id="dTabs">
+        <button data-tab="copy" class="on">Saved copy</button>
+        <button data-tab="notes">Shelf notes</button>
+        <button data-tab="content">Text</button>
+        <button data-tab="files">Files</button>
+      </div>
+      <div id="dBody" class="md"></div>
+    </div>
+  </dialog>
+
+  <dialog id="prompt" class="modal small-modal">
+    <form method="dialog">
+      <h3 id="pTitle">New category</h3>
+      <input id="pInput" autocomplete="off">
+      <div class="actions"><button value="cancel" class="ghost">Cancel</button><button value="ok" class="primary">Add</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

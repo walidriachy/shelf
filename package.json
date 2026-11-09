@@ -1,0 +1,68 @@
+{
+  "name": "shelf",
+  "productName": "Shelf",
+  "version": "1.0.0",
+  "description": "Save links you find. Shelf sorts them and finds them again when you ask.",
+  "main": "src/main.js",
+  "author": "Walid Riachy",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "app.shelf.links",
+    "productName": "Shelf",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/walidriachy/shelf.git"
+  },
+  "homepage": "https://github.com/walidriachy/shelf",
+  "bugs": {
+    "url": "https://github.com/walidriachy/shelf/issues"
+  }
+}

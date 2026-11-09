@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+dist/
+out/
+
+# Never commit personal data, settings or keys
+.env
+.env.*
+*.pem
+*.key
+settings.json
+library/
+incoming/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

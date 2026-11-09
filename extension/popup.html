@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --bg:#fff; --text:#1a1a19; --muted:#77746e; --line:#e7e5e1; --pill:#f0efec; --ok:#15803d; --err:#c2410c; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#181818; --text:#ededec; --muted:#9a9893; --line:#2a2a2a; --pill:#222; --ok:#4ade80; --err:#f97316; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin:0; width: 320px; background: var(--bg); color: var(--text); font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  .wrap { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .top { display:flex; align-items:center; justify-content: space-between; }
+  .brand { font-weight: 650; display:flex; align-items:center; gap:8px; }
+  .mark { width: 14px; height: 11px; border-top: 2.5px solid var(--text); border-bottom: 2.5px solid var(--text); position: relative; }
+  .mark::after { content:""; position:absolute; left:0; right:0; top:1.75px; border-top:2.5px solid var(--text); }
+  .page { display:flex; gap:10px; align-items:center; padding:10px; background: var(--pill); border-radius: 10px; }
+  .page img { width: 20px; height: 20px; border-radius: 4px; flex:none; }
+  .page .t { font-weight: 550; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page .u { color: var(--muted); font-size: 11.5px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page > div { min-width: 0; }
+  select, textarea, input { width:100%; font: inherit; color: var(--text); background: var(--bg); border:1px solid var(--line); border-radius: 8px; padding: 7px 9px; outline: 0; resize: none; }
+  button { font: inherit; border-radius: 8px; padding: 8px 12px; cursor: pointer; border:1px solid var(--line); background: var(--bg); color: var(--text); }
+  .primary { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; width: 100%; }
+  .link { border:0; background:none; color: var(--muted); padding: 2px 4px; font-size: 12px; }
+  .msg { font-size: 12px; min-height: 16px; color: var(--muted); }
+  .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
+  label { font-size: 12px; color: var(--muted); display:flex; flex-direction: column; gap: 4px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap" id="main">
+    <div class="top"><div class="brand"><span class="mark"></span>Shelf</div><button class="link" id="gear">Settings</button></div>
+    <div class="page"><img id="fav" alt=""><div><div class="t" id="title"></div><div class="u" id="url"></div></div></div>
+    <select id="cat"><option value="">Let Shelf decide the category</option></select>
+    <textarea id="note" rows="2" placeholder="Note (optional)"></textarea>
+    <button class="primary" id="save">Save to Shelf</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div class="wrap hidden" id="setup">
+    <div class="top"><div class="brand"><span class="mark"></span>Connect to Shelf</div><button class="link" id="back">Back</button></div>
+    <p style="margin:0;color:var(--muted)">Open the Shelf app → Settings → Chrome extension, copy the key and paste it here.</p>
+    <label>Connection key <input id="key" placeholder="Paste key"></label>
+    <button class="primary" id="connect">Connect</button>
+    <div class="msg" id="smsg"></div>
+  </div>
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
