@@ -4,12 +4,16 @@ Save links you come across. Shelf reads each page, works out what it is and what
 
 Mac and Windows · Electron · MIT licensed · your data stays in your own folders and accounts.
 
+![Paste a link and Shelf reads it, names it, files it and tags it](docs/demo/save.gif)
+
+**▶ [Watch the full demo (2 min 45 s)](docs/demo/shelf-demo.mp4)**: saving links, the Chrome extension, YouTube transcripts, offline copies, Shelf Pages, Ask and Settings. Each feature below also has its own short clip.
+
 ## Install
 
-Build it yourself (below), or download from [Releases](https://github.com/walidriachy/shelf/releases) when a build is published.
+Download the latest version from [Releases](https://github.com/walidriachy/shelf/releases/latest), or build it yourself (below).
 
-- **Mac:** open `Shelf-1.0.0-arm64.dmg` (Apple Silicon) or `Shelf-1.0.0.dmg` (Intel) and drag Shelf into Applications. The app isn't signed yet, so the first time, right-click Shelf in Applications and choose **Open**.
-- **Windows:** run `Shelf Setup 1.0.0.exe`. If SmartScreen warns you, click **More info → Run anyway**.
+- **Mac:** open `Shelf-1.0.0-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.0.0-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+- **Windows:** run `Shelf-Setup-1.0.0-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
 
 ## Saving links
 
@@ -18,7 +22,13 @@ Build it yourself (below), or download from [Releases](https://github.com/walidr
 - From any app, copy a link and press **⌘⇧L** (Windows: **Ctrl+Shift+L**).
 - From Chrome, use the extension (below).
 
+Categories are made for you. Click one in the sidebar to see just those links, or filter by any word:
+
+![Categories and filter](docs/demo/sort.gif)
+
 ## Shelf keeps an exact copy of everything
+
+![Offline copies of a PDF and a Google Sheet](docs/demo/copies.gif)
 
 Every link you save is copied to your computer so it looks exactly like the original, so you don't lose it if the original is deleted, made private or moved:
 
@@ -43,6 +53,8 @@ Click a card to see its details, Shelf notes, full saved copy and files. ⌘-cli
 
 ## Shelf Pages (Notion)
 
+![A Notion page rebuilt as a Shelf Page, with sub-pages, databases and editing](docs/demo/pages.gif)
+
 For Notion links Shelf also builds a **Shelf Page**: its own Notion-style copy made from the page's real content, not a picture of it. It keeps text formatting and colours, headings, lists, to-dos, toggles, callouts, quotes, code, columns, tables, images (downloaded), covers and icons, bookmarks, and up to 40 sub-pages. Databases come across as table, board, gallery or list views with their rows. It opens offline and follows light/dark mode. The exact snapshot is still saved next to it.
 
 Open it from the link's details (**Open Shelf Page**). Press **Edit** to change it: type anywhere, use the toolbar for headings, lists, to-dos, toggles, callouts, quotes, code, dividers, links and images, then **Save** (⌘S). Your edits are saved as *your version* next to the original, so **Reset to original** always brings the page back as it was saved from Notion. Not yet: calendar/timeline views (shown as tables). Formulas show their saved values.
@@ -56,6 +68,8 @@ In the link's details (or the top bar of the Shelf Page window):
 
 ## YouTube videos
 
+![YouTube transcript, AI notes with timestamps, and connected links](docs/demo/video.gif)
+
 Save a YouTube link (watch, youtu.be, Shorts or live) and Shelf reads the video: title, channel, length, description, chapters and the **full transcript** with timestamps. To get the transcript, Shelf plays the video muted in a hidden window with captions on, the same text you see with CC. The AI uses all of it, so the notes walk through the video section by section with clickable timestamps, and **Ask** can answer questions from what was said. Videos without captions keep their title, description and chapters.
 
 ## Connected links
@@ -65,6 +79,8 @@ Keep things that belong together, together: a tutorial video and the PDF, Notion
 ## Ask
 
 Click **Ask** (or press ⌘K / Ctrl+K) and type what you want, like "website design inspiration" or "free AI video tools". Shelf only answers from links you've saved.
+
+![Ask your shelf](docs/demo/ask.gif)
 
 ## AI
 
@@ -79,6 +95,8 @@ Settings → AI → **Use** picks what does the thinking:
 ## Backup & sync
 
 Settings → Backup & sync. Turn on whichever you want; they work on their own or together.
+
+![Settings: AI, library folder and Cloudflare R2 backup](docs/demo/settings.gif)
 
 **Library folder.** Everything Shelf saves (one small file per link, plus the exact copies) lives in one folder:
 
@@ -100,6 +118,8 @@ Tokens and keys stay in `settings.json` on each computer and are never put in th
 
 ## Chrome extension
 
+![Saving the page you're on with the Shelf extension](docs/demo/browser.gif)
+
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and pick the `extension` folder.
 3. Click the Shelf icon → paste the connection key from Shelf → Settings → Chrome extension.
@@ -113,6 +133,8 @@ npm install
 npm start
 npm run dist:mac   # or dist:win
 ```
+
+The demo clips in `docs/demo` were recorded from the real app on a throwaway library of public links.
 
 Settings and keys live in `settings.json` in the app's user-data folder (`~/Library/Application Support/Shelf` on Mac, `%APPDATA%\Shelf` on Windows); the library lives wherever you chose. See [CONTRIBUTING.md](CONTRIBUTING.md) for how the code is laid out and how to test.
 
