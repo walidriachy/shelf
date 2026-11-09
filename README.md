@@ -12,8 +12,8 @@ Mac and Windows · Electron · MIT licensed · your data stays in your own folde
 
 Download the latest version from [Releases](https://github.com/walidriachy/shelf/releases/latest), or build it yourself (below).
 
-- **Mac:** open `Shelf-1.0.0-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.0.0-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
-- **Windows:** run `Shelf-Setup-1.0.0-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
+- **Mac:** open `Shelf-1.1.0-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.1.0-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+- **Windows:** run `Shelf-Setup-1.1.0-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
 
 ## Saving links
 
