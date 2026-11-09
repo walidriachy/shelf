@@ -273,8 +273,11 @@ async function readGoogle(k, url, dir) {
     const markdown = r.buf.toString('utf8');
     try { const d = await get(`${base}/document/d/${k.id}/export?format=docx`); if (d.ok && !looksLikeLogin(d)) files.push({ name: save(dir, 'original.docx', d.buf), label: 'Word copy (.docx)' }); } catch {}
     try { const p = await get(`${base}/document/d/${k.id}/export?format=pdf`); if (p.ok && !looksLikeLogin(p)) files.push({ name: save(dir, 'original.pdf', p.buf), label: 'PDF copy' }); } catch {}
+    // The HTML export keeps the Doc's formatting, colours, tables and pictures: Shelf builds its own page from it.
+    let docHtml = '';
+    try { const h = await get(`${base}/document/d/${k.id}/export?format=html`); if (h.ok && !looksLikeLogin(h) && /html/.test(h.type)) docHtml = h.buf.toString('utf8'); } catch {}
     const title = (markdown.match(/^#\s+(.+)$/m) || [])[1] || markdown.trim().split('\n')[0].slice(0, 120);
-    return { title, markdown, files, source: 'Google Doc' };
+    return { title, markdown, files, docHtml, source: 'Google Doc' };
   }
   if (k.kind === 'gsheet') {
     const x = await get(`${base}/spreadsheets/d/${k.id}/export?format=xlsx`);
@@ -314,10 +317,16 @@ async function readGoogle(k, url, dir) {
     const name = (r.disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i) || [])[1] || 'original.bin';
     if (r.type.includes('text/html')) return null; // a Drive preview page; fall back to rendering it
     files.push({ name: save(dir, 'original' + (path.extname(decodeURIComponent(name)) || '.bin'), r.buf), label: `Original file (${decodeURIComponent(name)})` });
-    const markdown = /text|json|csv|markdown/.test(r.type) ? r.buf.toString('utf8').slice(0, MAX_CONTENT) : '';
+    const markdown = /text|json|csv|markdown/.test(r.type) ? r.buf.toString('utf8').slice(0, MAX_CONTENT) : await docxText(name, r.buf);
     return { title: decodeURIComponent(name), markdown, files, source: 'Google Drive file' };
   }
   return null;
+}
+
+// Text of a Word file, so it can be read, searched and summarised like any other copy.
+async function docxText(name, buf) {
+  if (!/\.docx$/i.test(decodeURIComponent(String(name || '')))) return '';
+  try { return (await require('mammoth').extractRawText({ buffer: buf })).value.slice(0, MAX_CONTENT); } catch { return ''; }
 }
 
 async function readPdf(r, dir, source = 'PDF') {
@@ -491,7 +500,7 @@ async function read(url, dir) {
       if (head.type.includes('pdf') || head.buf.slice(0, 5).toString() === '%PDF-') result = await readPdf(head, dir);
       else if (head.type && !/html|xml|text\/plain/.test(head.type) && head.ok) {
         const ext = path.extname(new URL(head.url).pathname) || '';
-        result = { title: decodeURIComponent(new URL(head.url).pathname.split('/').pop() || url), markdown: '', files: [{ name: save(dir, 'original' + ext, head.buf), label: 'Original file' }], source: head.type.split(';')[0] };
+        result = { title: decodeURIComponent(new URL(head.url).pathname.split('/').pop() || url), markdown: await docxText(ext, head.buf), files: [{ name: save(dir, 'original' + ext, head.buf), label: 'Original file' }], source: head.type.split(';')[0] };
       } else if (head.type.includes('text/plain')) {
         result = { title: new URL(head.url).pathname.split('/').pop() || url, markdown: head.buf.toString('utf8').slice(0, MAX_CONTENT), files: [{ name: save(dir, 'original.txt', head.buf), label: 'Original text file' }], source: 'Text file' };
       }
@@ -570,4 +579,4 @@ function openCopy(file, title) {
 
 const isNotion = (u) => { try { return kindOf(u).kind === 'notion'; } catch { return false; } };
 
-module.exports = { read, openSignIn, openCopy, kindOf, csvToTable, youtubeId, isNotion };
+module.exports = { read, get, openSignIn, openCopy, kindOf, csvToTable, youtubeId, isNotion };

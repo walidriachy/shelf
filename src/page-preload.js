@@ -36,7 +36,7 @@ function renderBar() {
   } else {
     if (info.mine) {
       bar.append(el('span', { className: 'tag' }, 'Your version'));
-      bar.append(el('button', { onclick: reset, title: 'Go back to the page as it was saved from Notion' }, 'Reset to original'));
+      bar.append(el('button', { onclick: reset, title: 'Go back to the page as Shelf first saved it' }, 'Reset to original'));
     }
     bar.append(el('button', { onclick: exportFile, title: 'Save as one file that opens in any browser' }, 'Export'));
     bar.append(el('button', { onclick: shareLink, title: 'Make a link anyone can open (uses your Cloudflare R2)' }, 'Share'));

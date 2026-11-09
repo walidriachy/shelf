@@ -7,7 +7,7 @@ Where Shelf is, and what's left. Items marked **(help wanted)** are good places 
 - Save links from the app, the clipboard shortcut and the Chrome extension.
 - AI reads every link and writes a title, category (creating new ones when needed), tags, summary, key points and full notes. Runs on your own Claude subscription through Claude Code, or a Replicate token, or keywords only.
 - Exact offline copies: page snapshots, screenshots, original PDFs, Google Docs/Sheets/Slides exports.
-- **Shelf Pages**: Notion pages rebuilt as Shelf's own Notion-style pages, with sub-pages, databases (table, board, gallery, list) and images. Editable, with "your version" and Reset to original.
+- **Shelf Pages**: Notion pages, Google Docs, Word files, PDFs and Google Slides rebuilt as Shelf's own editable pages (Notion with sub-pages and databases). Editable, with "your version" and Reset to original.
 - **Share**: export a Shelf Page as one self-contained HTML file, or as a 7-day signed link through your Cloudflare R2.
 - **YouTube**: title, chapters, description and full transcript; AI notes with timestamps.
 - **Connected links**: tie a video to the PDF, Notion page or Drive file that explains it.
@@ -36,7 +36,11 @@ These matter most if Shelf is going to be used by anyone else.
 - [ ] Export as PDF and as Markdown (for importing into Obsidian, Notion, etc.).
 - [ ] Share any saved link's notes and copy, not only Shelf Pages.
 
-## 3. Shelf Pages (Notion)
+## 3. Shelf Pages
+
+- [ ] PDFs: detect tables and multi-column layouts; keep figures as pictures in the text, not only in *Original pages*.
+- [ ] Google Sheets as a Shelf Page (an editable table per tab).
+- [ ] Word: keep text colours (the converter drops them today).
 
 - [ ] Calendar and timeline database views (shown as tables today).
 - [ ] Formulas and rollups computed, not only their saved values.

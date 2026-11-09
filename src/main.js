@@ -7,7 +7,8 @@ const { Store } = require('./store');
 const { fetchMeta } = require('./meta');
 const { analyze, ask, provider } = require('./ai');
 const { findClaude } = require('./claude');
-const { read, openSignIn, openCopy, kindOf, isNotion } = require('./reader');
+const { read, get: fetchUrl, openSignIn, openCopy, kindOf, isNotion } = require('./reader');
+const shelfPage = require('./shelfpage');
 const isYouTube = (u) => { try { return kindOf(u).kind === 'youtube'; } catch { return false; } };
 const { sync } = require('./sync');
 const library = require('./library');
@@ -69,6 +70,27 @@ async function addLink(raw, note = '') {
   return { ok: true, link };
 }
 
+// What a built Shelf Page says it's a copy of.
+function pageLabel(source = '') {
+  if (/Google Doc/.test(source)) return 'a Google Doc';
+  if (/Slides/.test(source)) return 'a Google Slides deck';
+  if (/pdf/i.test(source)) return 'a PDF';
+  if (/word|docx|officedocument/i.test(source)) return 'a Word document';
+  return '';
+}
+
+// Links saved before Shelf built pages for Docs, Word files and PDFs: build theirs from the files
+// already in the archive. Nothing is downloaded again and no AI is used.
+async function buildMissingPages() {
+  for (const l of store.links()) {
+    if (l.deleted || l.page || l.pageTried || isNotion(l.url) || !shelfPage.canHavePage(l.files)) continue;
+    let n = 0;
+    try { n = await shelfPage.buildFromArchive(archiveDir(l.id), { title: l.title, label: pageLabel(l.source) }); } catch (e) { console.error('Shelf Page', e.message); }
+    store.update(l.id, n ? { page: 'notion/index.html', pages: 1, pageTried: true } : { pageTried: true });
+    if (n) { pushState(); scheduleSync(); }
+  }
+}
+
 // Work through links two at a time so pasting many at once doesn't overload the computer.
 const queue = [];
 let running = 0;
@@ -111,6 +133,11 @@ async function doProcess(id) {
     if (oldLen > 2000 && newLen < oldLen * 0.4 && !r.page) { unusable = true; r.partial = true; }
   }
   if (r && !unusable) {
+    // Google Docs, Word files and PDFs get Shelf's own editable page too, like Notion pages.
+    if (!r.page && !isNotion(link.url)) {
+      try { await shelfPage.buildFromArchive(incoming, { docHtml: r.docHtml, title: r.title, fetcher: fetchUrl, label: pageLabel(r.source) }); }
+      catch (e) { console.error('Shelf Page', e.message); }
+    }
     // Replace the old copy with the fresh one.
     moveDir(incoming, dir);
   } else {
@@ -161,11 +188,11 @@ async function doProcess(id) {
     files: listFiles(id).map(f => f.name),
     copy: bestCopy(id),
     page: fs.existsSync(path.join(dir, 'notion', 'index.html')) ? 'notion/index.html' : '',
-    pages: fs.existsSync(path.join(dir, 'notion', 'index.html')) ? (r && !unusable && r.pages) || fresh.pages || 1 : 0,
+    pages: fs.existsSync(path.join(dir, 'notion', 'index.html')) ? (isNotion(link.url) ? (r && !unusable && r.pages) || fresh.pages || 1 : 1) : 0,
     archivedAt: (r && !unusable) ? Date.now() : (fresh.archivedAt || 0),
     contentChars: contentOf(id).length,
     offline, status: 'ready', v: ANALYSIS_VERSION,
-    pageTried: isNotion(link.url) ? true : undefined,
+    pageTried: isNotion(link.url) || (r && !unusable) ? true : fresh.pageTried,
     video: (r && !unusable && r.video) || fresh.video || undefined,
     videoTried: isYouTube(link.url) ? true : undefined,
     error: a.aiError ? 'AI: ' + a.aiError : '',
@@ -564,12 +591,13 @@ function publicSettings() {
   };
 }
 
+// SHELF_DATA lets you point at a separate data folder (handy for testing). Set before the
+// single-instance lock, which belongs to the data folder, so a test copy can run beside Shelf.
+if (globalThis.process.env.SHELF_DATA) app.setPath('userData', globalThis.process.env.SHELF_DATA);
 const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } });
-  // SHELF_DATA lets you point at a separate data folder (handy for testing).
-  if (globalThis.process.env.SHELF_DATA) app.setPath('userData', globalThis.process.env.SHELF_DATA);
   app.whenReady().then(() => {
     store = new Store(app.getPath('userData'));
     // shelf://archive/<id>/<file> serves saved screenshots to the window.
@@ -611,6 +639,7 @@ else {
     // Notion links saved before Shelf Pages existed get one re-read to build theirs.
     const needsPage = (l) => (isNotion(l.url) && !l.page && !l.pageTried) || (isYouTube(l.url) && !l.videoTried);
     for (const l of store.links()) if (l.status === 'pending' || (l.v || 0) < ANALYSIS_VERSION || needsPage(l)) processLink(l.id);
+    setTimeout(() => buildMissingPages().catch(e => console.error('Shelf Pages', e.message)), 3000);
     scheduleSync(1500);
     setInterval(() => scheduleSync(0), 5 * 60 * 1000);
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

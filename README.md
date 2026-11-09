@@ -51,13 +51,19 @@ Claude chooses the category. It uses your existing ones when they fit and create
 
 Click a card to see its details, Shelf notes, full saved copy and files. ⌘-click (Ctrl-click on Windows) opens the site directly. Right-click a card, or click **Edit**, to change its category, tags or note, or to re-sort it.
 
-## Shelf Pages (Notion)
+## Shelf Pages
 
 ![A Notion page rebuilt as a Shelf Page, with sub-pages, databases and editing](docs/demo/pages.gif)
 
-For Notion links Shelf also builds a **Shelf Page**: its own Notion-style copy made from the page's real content, not a picture of it. It keeps text formatting and colours, headings, lists, to-dos, toggles, callouts, quotes, code, columns, tables, images (downloaded), covers and icons, bookmarks, and up to 40 sub-pages. Databases come across as table, board, gallery or list views with their rows. It opens offline and follows light/dark mode. The exact snapshot is still saved next to it.
+For Notion pages, Google Docs, Word files, PDFs (direct links or on Google Drive) and Google Slides, Shelf also builds a **Shelf Page**: its own editable copy made from the real content, not a picture of it.
 
-Open it from the link's details (**Open Shelf Page**). Press **Edit** to change it: type anywhere, use the toolbar for headings, lists, to-dos, toggles, callouts, quotes, code, dividers, links and images, then **Save** (⌘S). Your edits are saved as *your version* next to the original, so **Reset to original** always brings the page back as it was saved from Notion. Not yet: calendar/timeline views (shown as tables). Formulas show their saved values.
+- **Notion:** text formatting and colours, headings, lists, to-dos, toggles, callouts, quotes, code, columns, tables, images (downloaded), covers and icons, bookmarks, and up to 40 sub-pages. Databases come across as table, board, gallery or list views with their rows.
+- **Google Docs and Word files:** headings, bold/italic/underline, text and highlight colours (Google Docs), lists (nested), tables, links, code blocks and pictures (downloaded).
+- **PDFs and Slides:** rebuilt from the text (headings, paragraphs, lists), with every original page kept as a picture in an *Original pages* toggle at the bottom, so charts and layout aren't lost. Scanned PDFs show the pages themselves.
+
+Shelf Pages open offline and follow light/dark mode. The original file or exact snapshot is still saved next to it. Links saved before this version get their page built from the files already saved, with nothing downloaded again.
+
+Open it from the link's details (**Open Shelf Page**). Press **Edit** to change it: type anywhere, use the toolbar for headings, lists, to-dos, toggles, callouts, quotes, code, dividers, links and images, then **Save** (⌘S). Your edits are saved as *your version* next to the original, so **Reset to original** always brings the page back as Shelf first saved it. Not yet: calendar/timeline views (shown as tables). Formulas show their saved values.
 
 ### Share a Shelf Page
 

@@ -422,7 +422,7 @@ function md(src) {
 }
 
 const fmtSize = (n) => n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n > 1e3 ? Math.round(n / 1e3) + ' KB' : n + ' B';
-const FILE_LABELS = { 'notion/index.html': 'Shelf Page (Notion-style copy, opens offline)', 'page.mhtml': 'Exact copy of the page (opens offline)', 'content.md': 'Text for search (Markdown)', 'notes.md': 'Shelf notes (Markdown)', 'screenshot.jpg': 'Screenshot of the page', 'original.pdf': 'Original PDF', 'original.docx': 'Word copy', 'original.xlsx': 'Spreadsheet copy', 'original.txt': 'Original text file' };
+const FILE_LABELS = { 'notion/index.html': 'Shelf Page (Shelf’s own editable copy, opens offline)', 'page.mhtml': 'Exact copy of the page (opens offline)', 'content.md': 'Text for search (Markdown)', 'notes.md': 'Shelf notes (Markdown)', 'screenshot.jpg': 'Screenshot of the page', 'original.pdf': 'Original PDF', 'original.docx': 'Word copy', 'original.xlsx': 'Spreadsheet copy', 'original.txt': 'Original text file' };
 let detailId = null, detailData = null, detailTab = 'notes';
 const liveLink = (id) => links.find(x => x.id === id);
 const relCount = (l) => (l.related || []).filter(liveLink).length;
@@ -541,7 +541,7 @@ function showTab(tab) {
   }
   else if (tab === 'copy') {
     const kind = !l.copy ? '' : l.copy === 'page.mhtml' ? 'a complete snapshot of the page: layout, images and text exactly as they looked' : l.copy.endsWith('.pdf') ? 'the original document as a PDF, exactly as it looked' : 'the original file';
-    const pageBox = l.page ? `<div class="copybox"><div><b>Shelf Page${l.pages > 1 ? ` · ${l.pages} pages` : ''}${l.edited ? ' · your version' : ''}</b><div class="muted small">Shelf’s own Notion-style copy, rebuilt from the page’s real content${l.pages > 1 ? ' including its sub-pages and databases' : ''}. Opens offline. Press Edit inside it to make it your own; the original is always kept.</div></div><button class="primary" data-opencopy="page">Open Shelf Page</button></div>${shareBox(l)}` : '';
+    const pageBox = l.page ? `<div class="copybox"><div><b>Shelf Page${l.pages > 1 ? ` · ${l.pages} pages` : ''}${l.edited ? ' · your version' : ''}</b><div class="muted small">Shelf’s own editable copy, rebuilt from the ${/notion\./.test(l.url) ? 'page’s' : 'document’s'} real content${l.pages > 1 ? ' including its sub-pages and databases' : ''}. Opens offline. Press Edit inside it to make it your own; the original is always kept.</div></div><button class="primary" data-opencopy="page">Open Shelf Page</button></div>${shareBox(l)}` : '';
     body.innerHTML = pageBox + (l.copy
       ? `<div class="copybox"><div><b>Shelf saved ${kind}${l.archivedAt ? ' on ' + new Date(l.archivedAt).toLocaleString() : ''}.</b><div class="muted small">It opens offline, so you can still see it if the original is deleted, made private or moved.</div></div><button class="${l.page ? 'ghost' : 'primary'}" data-opencopy="snapshot">${l.page ? 'Open snapshot' : 'Open saved copy'}</button></div>` +
         (l.shot ? `<img class="dshot clickable" data-opencopy src="${esc(shotUrl(l))}" alt="Preview of the saved copy">` : '')
