@@ -401,4 +401,4 @@ async function buildFromArchive(dir, opts = {}) {
 
 const canHavePage = (files) => (files || []).some(f => f === 'original.pdf' || f === 'original.docx');
 
-module.exports = { buildFromArchive, fromHtml, fromDocx, fromPdf, canHavePage };
+module.exports = { buildFromArchive, fromHtml, fromDocx, fromPdf, canHavePage, writePage };

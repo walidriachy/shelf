@@ -12,8 +12,8 @@ Mac and Windows · Electron · MIT licensed · your data stays in your own folde
 
 Download the latest version from [Releases](https://github.com/walidriachy/shelf/releases/latest), or build it yourself (below).
 
-- **Mac:** open `Shelf-1.3.0-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.3.0-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
-- **Windows:** run `Shelf-Setup-1.3.0-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
+- **Mac:** open `Shelf-1.3.1-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.3.1-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+- **Windows:** run `Shelf-Setup-1.3.1-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
 
 ## Saving links
 
@@ -46,6 +46,8 @@ The exact copies stay on the computer that saved them. Cloud sync carries each l
 Claude also writes **Shelf notes** for each link: a structured write-up of what's inside, specific tags, key points, what it offers, what to use it for, and pricing. Search and Ask look through all of it, including the full saved copy.
 
 If a link stops working, Shelf says so and keeps showing its saved copy.
+
+**Private Drive PDFs and Word files:** if Google Drive for desktop is on your computer, paste the file's link (`drive.google.com/file/d/…`) and Shelf reads the file from your computer, with no sign-in, and makes its Shelf Page. Shelf only reads Drive for desktop's files and never changes them. Tip: when a file is open in Drive's preview, the address bar still shows the folder or Recent page. Use **⋮ → Open in new window**, or right-click the file → **Share → Copy link**, to get the file's own link.
 
 **Private pages and Google files** (Docs, Sheets, Slides, Drive files and folders, anything behind a sign-in): save them with the Chrome extension. Google doesn't allow signing in inside other apps, so the extension downloads the file using the Google account you're signed in with in Chrome and hands it to Shelf: you get the full copy, Shelf Page and summary. Your password never touches Shelf. A file Shelf saved earlier as private gets updated when you save it again from Chrome. Private Notion pages: sign in once under **Settings → Private pages**.
 

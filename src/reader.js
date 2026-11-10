@@ -4,6 +4,7 @@
 // - PDFs and Drive files are downloaded and their text extracted.
 const { BrowserWindow, session, shell } = require('electron');
 const notion = require('./notion');
+const drive = require('./drive');
 const fs = require('fs');
 const path = require('path');
 
@@ -511,10 +512,30 @@ async function read(url, dir, opts = {}) {
   return result;
 }
 
+// A private Drive file read from this computer through Google Drive for desktop.
+async function readDriveLocal(id, url, dir) {
+  const f = drive.localFile(id);
+  if (!f || f.google || f.size > 300 * 1024 * 1024) return null;   // Google Docs live online; huge files are skipped
+  const buf = await fs.promises.readFile(f.path);                   // Drive for desktop downloads it if needed
+  const r = { ok: true, status: 200, url, type: f.mime || '', buf, disposition: '' };
+  if (/pdf/.test(f.mime) || buf.slice(0, 5).toString() === '%PDF-') { const out = await readPdf(r, dir, 'Google Drive PDF'); out.title = out.title || f.name; out.source += ' · via Drive for desktop'; return out; }
+  const ext = path.extname(f.name) || '';
+  const markdown = /^text\/|json|csv|markdown/.test(f.mime) ? buf.toString('utf8').slice(0, MAX_CONTENT) : await docxText(f.name, buf);
+  return { title: f.name, markdown, files: [{ name: save(dir, 'original' + ext, buf), label: `Original file (${f.name})` }], source: 'Google Drive file · via Drive for desktop' };
+}
+
 async function readOwn(url, dir, opts = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const k = kindOf(url);
   let result = null;
+
+  // A Drive page (Recent, Starred, a folder, …) is a list, not a file. Drive keeps this address while a file is
+  // open in its preview, so tell the person how to get the file's own link instead of calling it private.
+  const view = drive.driveTarget(url);
+  if (view && view.view !== 'file') {
+    const name = { recent: 'Recent', starred: 'Starred', shared: 'Shared with me', 'my-drive': 'My Drive', folder: 'a folder', computers: 'Computers', quota: 'Storage' }[view.view] || 'Drive';
+    return { driveView: true, title: `Google Drive – ${name}`, url, markdown: '', files: [], source: 'Google Drive page', kind: 'gdrive-view' };
+  }
 
   if (k.kind.startsWith('g')) {
     if (opts.fetched) {
@@ -523,6 +544,10 @@ async function readOwn(url, dir, opts = {}) {
       else result = null;   // the browser couldn't open it either: try the normal way below
     }
     if (!result) { try { result = await readGoogle(k, url, dir); } catch (e) { result = null; } }
+    // A Drive file Shelf can't open online (private): read it from Drive for desktop on this computer.
+    if (k.kind === 'gdrive' && (!result || result.private)) {
+      try { const l = await readDriveLocal(k.id, url, dir); if (l) result = l; } catch (e) { console.error('Drive file', e.message); }
+    }
     if (result && result.private) {
       return { private: true, kind: k.kind, url, markdown: '', files: [], source: 'Private Google file' };
     }

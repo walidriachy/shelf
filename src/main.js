@@ -157,10 +157,10 @@ async function doProcess(id) {
   const incoming = path.join(app.getPath('userData'), 'incoming', path.basename(dir));
   fs.rmSync(incoming, { recursive: true, force: true });
   const sent = browserFiles.get(id) || {}; browserFiles.delete(id);
-  try { r = await read(link.url, incoming, { fetched: sent.fetched, page: sent.page }); }
+  try { r = await read(link.url, incoming, { fetched: sent.fetched, page: sent.page, libraryDir: store.libraryDir }); }
   catch (e) { readError = e.message; }
 
-  let unusable = !r || r.dead || (r.private && !(r.markdown || '').trim());
+  let unusable = !r || r.dead || r.driveView || (r.private && !(r.markdown || '').trim());
   // If a re-read comes back far smaller than the copy we have, the page probably didn't load fully: keep the fuller copy.
   if (!unusable && hadCopy) {
     const oldLen = contentOf(id).length, newLen = (r.markdown || '').length;
@@ -176,13 +176,16 @@ async function doProcess(id) {
     moveDir(incoming, dir);
   } else {
     fs.rmSync(incoming, { recursive: true, force: true });
+    // A Drive page saved by an older Shelf as a list of files: that list isn't wanted, drop it.
+    if (r && r.driveView) fs.rmSync(dir, { recursive: true, force: true });
   }
   contentCache.delete(id);
 
   let offline = '';
   if (unusable && r && r.partial) offline = '';
   else if (unusable) {
-    if (hadCopy) offline = r && r.private ? 'The original is now private. Showing Shelf’s saved copy.' : 'The original link no longer works. Showing Shelf’s saved copy.';
+    if (r && r.driveView) offline = 'This is a Google Drive page, not a file. Drive keeps this address while a file is open in its preview. To save the file itself: in the preview click ⋮ → Open in new window and copy that address, or right-click the file → Share → Copy link.';
+    else if (hadCopy) offline = r && r.private ? 'The original is now private. Showing Shelf’s saved copy.' : 'The original link no longer works. Showing Shelf’s saved copy.';
     else if (r && r.private) offline = 'This page is private, so only the address was saved. Use Settings → Sign in to sites, then re-read it.';
     else if (r && r.dead) offline = 'The page could not be found.';
     else offline = 'Could not open the page' + (readError ? ` (${readError})` : '') + '.';
@@ -198,7 +201,7 @@ async function doProcess(id) {
   // 2. Analyse the saved content with AI.
   const info = {
     url: link.url, host, source: r?.source || (hadCopy ? link.source : ''),
-    title: (r && !unusable && r.title) || link.title || meta.title || host,
+    title: (r && (!unusable || r.driveView) && r.title) || link.title || meta.title || host,
     description: (r && r.description) || meta.description || link.description || '',
     content: contentOf(id), note: link.note, problem: offline, related: relatedTitles(link),
   };
