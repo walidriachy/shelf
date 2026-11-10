@@ -68,7 +68,8 @@ function runClaude(settings, system, prompt) {
       clearTimeout(timer);
       if (code === 0 && out.trim()) return resolve(out);
       const msg = (err || out).trim().split('\n').pop() || `Claude exited with code ${code}`;
-      reject(new Error(/login|auth|token|401/i.test(msg) ? 'Claude is not signed in. Run "claude" once in Terminal, or paste a token in Settings.' : msg));
+      if (/expired|could not be refreshed/i.test(msg)) return reject(new Error('Claude’s sign-in on this computer has expired. Run "claude setup-token" in Terminal and paste the token in Settings (it lasts a year). Shelf finishes these links by itself once Claude works again.'));
+      reject(new Error(/not logged in|login|authenticat|401/i.test(msg) ? 'Claude is not signed in on this computer. Run "claude setup-token" in Terminal and paste the token in Settings (it lasts a year). Shelf finishes these links by itself once Claude works again.' : msg));
     });
     child.stdin.end(prompt);
   });

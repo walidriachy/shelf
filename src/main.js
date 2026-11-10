@@ -5,7 +5,7 @@ const http = require('http');
 const { pathToFileURL } = require('url');
 const { Store } = require('./store');
 const { fetchMeta } = require('./meta');
-const { analyze, ask, provider } = require('./ai');
+const { analyze, ask, provider, aiWorks } = require('./ai');
 const { findClaude } = require('./claude');
 const { read, get: fetchUrl, openSignIn, openCopy, kindOf, isNotion } = require('./reader');
 const shelfPage = require('./shelfpage');
@@ -52,11 +52,24 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'shelf', privileges: { standard:
 function send(channel, payload) { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); }
 function pushState() { send('state', { links: store.links(), categories: store.categories() }); }
 
+// A link copied from a sign-in screen or a redirect points at the real page in its parameters
+// (accounts.google.com/...?continue=…, google.com/url?q=…): save that page, not the sign-in screen.
+function unwrapRedirect(u) {
+  const isSignIn = /(^|\.)accounts\.google\.com$/.test(u.hostname) || /\/(signin|login|sign-in|log-in|auth|oauth)\b/i.test(u.pathname);
+  const isGoogleUrl = /(^|\.)google\.[a-z.]+$/.test(u.hostname) && u.pathname === '/url';
+  if (!isSignIn && !isGoogleUrl) return u;
+  for (const k of ['continue', 'followup', 'q', 'url', 'next', 'redirect', 'redirect_uri', 'redirect_url', 'return_to', 'returnTo', 'service_url']) {
+    const v = u.searchParams.get(k);
+    if (v && /^https?:\/\//i.test(v)) { try { const t = new URL(v); if (t.href !== u.href && !/\/(signin|login)\b/i.test(t.pathname)) return unwrapRedirect(t); } catch {} }
+  }
+  return u;
+}
+
 function normalizeInput(raw) {
   let url = String(raw || '').trim();
   if (!url) return null;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  try { const u = new URL(url); return u.hostname.includes('.') ? u.href : null; } catch { return null; }
+  try { const u = new URL(url); return u.hostname.includes('.') ? unwrapRedirect(u).href : null; } catch { return null; }
 }
 
 async function addLink(raw, note = '') {
@@ -68,6 +81,17 @@ async function addLink(raw, note = '') {
   pushState();
   processLink(link.id);
   return { ok: true, link };
+}
+
+// Links whose AI step failed (Claude signed out, offline, …) are finished automatically once AI answers again.
+let retrying = false;
+async function retryAiFailures() {
+  if (retrying) return;
+  const failed = store.links().filter(l => !l.deleted && l.status === 'ready' && /^AI:/.test(l.error || ''));
+  if (!failed.length) return;
+  retrying = true;
+  try { if (await aiWorks(store.settings())) for (const l of failed) processLink(l.id); }
+  finally { retrying = false; }
 }
 
 // What a built Shelf Page says it's a copy of.
@@ -157,6 +181,8 @@ async function doProcess(id) {
   // Fill in basics a rendered page may lack (titles/images for Google files and PDFs).
   let meta = {};
   if (!r || !r.title || (!r.image && r.kind === 'web')) { try { meta = await fetchMeta(link.url); } catch {} }
+  // A private page's preview info is the sign-in screen's ("Sign in", accounts.google.com): don't use it.
+  if (r && r.private) meta = {};
   const shot = fs.existsSync(path.join(dir, 'screenshot.jpg'));
 
   // 2. Analyse the saved content with AI.
@@ -355,6 +381,7 @@ ipcMain.handle('settings', (_, patch) => {
   if (patch && patch.gistToken !== undefined && patch.gistToken !== store.settings().gistToken) patch.gistId = '';
   if (patch) { delete patch.libraryDir; store.setSettings(patch); }
   if (patch && (patch.gistToken || patch.r2On || patch.r2AccessKeyId)) scheduleSync(200);
+  if (patch && (patch.claudeToken || patch.provider || patch.replicateToken || patch.claudeModel)) setTimeout(retryAiFailures, 500);
   return publicSettings();
 });
 ipcMain.handle('r2-test', async () => {
@@ -640,6 +667,8 @@ else {
     const needsPage = (l) => (isNotion(l.url) && !l.page && !l.pageTried) || (isYouTube(l.url) && !l.videoTried);
     for (const l of store.links()) if (l.status === 'pending' || (l.v || 0) < ANALYSIS_VERSION || needsPage(l)) processLink(l.id);
     setTimeout(() => buildMissingPages().catch(e => console.error('Shelf Pages', e.message)), 3000);
+    setTimeout(retryAiFailures, 20 * 1000);
+    setInterval(retryAiFailures, 15 * 60 * 1000);
     scheduleSync(1500);
     setInterval(() => scheduleSync(0), 5 * 60 * 1000);
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

@@ -1,7 +1,7 @@
 {
   "name": "shelf",
   "productName": "Shelf",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Save links you find. Shelf sorts them and finds them again when you ask.",
   "main": "src/main.js",
   "author": "Walid Riachy",

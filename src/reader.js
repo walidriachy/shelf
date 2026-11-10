@@ -211,6 +211,7 @@ async function get(url) {
   } finally { clearTimeout(t); }
 }
 
+const isSignInUrl = (u) => { try { const x = new URL(u); return /(^|\.)accounts\.google\.com$|^login\.|^signin\./.test(x.hostname) || /\/(signin|login|sign-in|log-in)(\/|$)|ServiceLogin/i.test(x.pathname); } catch { return false; } };
 const looksLikeLogin = (r) => r.type.includes('text/html') && /accounts\.google\.com|ServiceLogin|signin/i.test(r.url + r.buf.slice(0, 4000).toString());
 
 function save(dir, name, data) { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, name), data); return name; }
@@ -523,6 +524,11 @@ async function read(url, dir) {
         const extra = notion.extraText(r.structure);
         if (extra.trim()) md = (md + '\n\n---\n' + extra).slice(0, MAX_CONTENT);
       } catch (e) { page = ''; }
+    }
+    // Sent to a sign-in screen: the page is private. Keep the link as given; never save the sign-in screen.
+    if (isSignInUrl(r.url) && !isSignInUrl(url)) {
+      for (const f of [r.snapshot, r.screenshot]) if (f) fs.rmSync(path.join(dir, f), { force: true });
+      return { private: true, kind: k.kind, url, markdown: '', files: [], source: k.kind.startsWith('g') ? 'Private Google file' : 'Private page' };
     }
     result = {
       title: (r.structure && notion.pageTitle(r.structure)) || r.title, description: r.description, image: r.image, favicon: r.favicon, url: r.url,

@@ -251,4 +251,10 @@ Return JSON exactly like: {"answer":"one to three friendly sentences: the direct
   }
 }
 
-module.exports = { analyze, ask, replicate, scoreLinks, provider };
+// A tiny request to see whether the AI answers at all (used before retrying links it failed on).
+async function aiWorks(settings) {
+  if (provider(settings) === 'none') return false;
+  try { return !!(await complete(settings, 'Reply with the single word: ok', 'ok', 5)); } catch { return false; }
+}
+
+module.exports = { analyze, ask, replicate, scoreLinks, provider, aiWorks };
