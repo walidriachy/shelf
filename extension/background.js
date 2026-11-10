@@ -12,8 +12,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const url = info.menuItemId === 'link' ? info.linkUrl : tab.url;
   let message;
   try {
-    const r = await saveLinkWithFiles({ url });
-    message = r.queued ? 'Shelf is closed. Saved for later.' : r.refreshed ? 'Updated with the files from Google' : r.duplicate ? 'Already on your shelf' : 'Saved to Shelf';
+    const r = await saveLinkWithFiles({ url }, info.menuItemId === 'link' ? null : tab);
+    message = r.queued ? 'Shelf is closed. Saved for later.' : r.refreshed ? 'Updated with what you see in Chrome' : r.duplicate ? 'Already on your shelf' : 'Saved to Shelf';
   } catch (e) { message = e.message; }
   chrome.notifications.create({ type: 'basic', iconUrl: 'icon128.png', title: 'Shelf', message });
 });
@@ -22,6 +22,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // even if the popup closes.
 chrome.runtime.onMessage.addListener((m, _s, reply) => {
   if (!m || m.type !== 'save') return;
-  saveLinkWithFiles(m.item).then(r => reply({ ok: true, r }), e => reply({ ok: false, error: e.message, auth: !!e.auth }));
+  saveLinkWithFiles(m.item, m.tab).then(r => reply({ ok: true, r }), e => reply({ ok: false, error: e.message, auth: !!e.auth }));
   return true;
 });

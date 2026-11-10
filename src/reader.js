@@ -487,7 +487,31 @@ function fetchedGetter(fetched) {
   };
 }
 
+// The page as the user saw it in their browser (sent by the extension): used when Shelf can't open
+// the page itself, e.g. a private page or one behind a sign-in.
+function fromBrowserPage(url, dir, page) {
+  fs.mkdirSync(dir, { recursive: true });
+  const files = [];
+  if (page.mhtml) files.push({ name: save(dir, 'page.mhtml', Buffer.from(page.mhtml, 'base64')), label: 'Exact copy of the page (from your browser)' });
+  if (page.screenshot) files.push({ name: save(dir, 'screenshot.jpg', Buffer.from(page.screenshot, 'base64')), label: 'Screenshot' });
+  const markdown = String(page.text || '').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_CONTENT);
+  return { title: String(page.title || '').trim(), description: page.description || '', image: page.image || '', url, markdown, files, screenshot: page.screenshot ? 'screenshot.jpg' : '', source: 'Private page · via your browser', viaBrowser: true };
+}
+
 async function read(url, dir, opts = {}) {
+  let result = null, err = null;
+  try { result = await readOwn(url, dir, opts); } catch (e) { err = e; }
+  const failed = !result || result.private || result.dead || (result.loginWall && (result.markdown || '').length < 400);
+  if (opts.page && failed && (opts.page.mhtml || opts.page.text)) {
+    result = { ...fromBrowserPage(url, dir, opts.page), kind: kindOf(url).kind };
+    if (result.markdown) save(dir, 'content.md', result.markdown);
+    return result;
+  }
+  if (err) throw err;
+  return result;
+}
+
+async function readOwn(url, dir, opts = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const k = kindOf(url);
   let result = null;
@@ -549,7 +573,7 @@ async function read(url, dir, opts = {}) {
       markdown: md, files: [page && { name: page, label: 'Shelf Page' }, r.snapshot && { name: r.snapshot, label: 'Exact copy of the page' }, r.screenshot && { name: r.screenshot, label: 'Screenshot' }].filter(Boolean), screenshot: r.screenshot, page,
       pages: r.structure ? r.structure.pages : 0,
       source: k.kind === 'notion' ? 'Notion page' : k.kind === 'youtube' ? 'YouTube video' : k.kind.startsWith('g') ? 'Google page' : 'Web page',
-      private: r.loginWall && md.length < 400,
+      private: r.loginWall && md.length < 400, loginWall: !!r.loginWall,
       dead: md.length < 600 && /(page|file|document) (couldn.t|could not|cannot|can.t) be found|page not found|404|no longer (exists|available)|has been (deleted|removed)/i.test(md + ' ' + r.title),
     };
   }

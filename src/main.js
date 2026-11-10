@@ -75,17 +75,18 @@ function normalizeInput(raw) {
 // Files the Chrome extension downloaded for a link, waiting for that link to be read.
 const browserFiles = new Map();
 
-async function addLink(raw, note = '', fetched = null) {
+async function addLink(raw, note = '', fetched = null, page = null) {
   const url = normalizeInput(raw);
   if (!url) return { ok: false, error: 'That does not look like a link' };
   const existing = store.findByUrl(url);
   if (existing) {
     // Sent again from the browser with its files (e.g. it was private before): read it again with them.
-    if (fetched) { browserFiles.set(existing.id, fetched); processLink(existing.id); }
-    return { ok: true, duplicate: true, refreshed: !!fetched, link: existing };
+    // Sent again from the browser (e.g. it was private before): read it again with what the browser sent.
+    if (fetched || page) { browserFiles.set(existing.id, { fetched, page }); processLink(existing.id); }
+    return { ok: true, duplicate: true, refreshed: !!(fetched || page), link: existing };
   }
   const link = store.add({ url, note, title: new URL(url).hostname.replace(/^www\./, '') });
-  if (fetched) browserFiles.set(link.id, fetched);
+  if (fetched || page) browserFiles.set(link.id, { fetched, page });
   pushState();
   processLink(link.id);
   return { ok: true, link };
@@ -155,8 +156,8 @@ async function doProcess(id) {
   // Read into a scratch folder on this computer first, so a half-saved copy never reaches the cloud folder.
   const incoming = path.join(app.getPath('userData'), 'incoming', path.basename(dir));
   fs.rmSync(incoming, { recursive: true, force: true });
-  const fetched = browserFiles.get(id); browserFiles.delete(id);
-  try { r = await read(link.url, incoming, { fetched }); }
+  const sent = browserFiles.get(id) || {}; browserFiles.delete(id);
+  try { r = await read(link.url, incoming, { fetched: sent.fetched, page: sent.page }); }
   catch (e) { readError = e.message; }
 
   let unusable = !r || r.dead || (r.private && !(r.markdown || '').trim());
@@ -191,7 +192,7 @@ async function doProcess(id) {
   let meta = {};
   if (!r || !r.title || (!r.image && r.kind === 'web')) { try { meta = await fetchMeta(link.url); } catch {} }
   // A private page's preview info is the sign-in screen's ("Sign in", accounts.google.com): don't use it.
-  if (r && r.private) meta = {};
+  if (r && (r.private || r.viaBrowser)) meta = {};
   const shot = fs.existsSync(path.join(dir, 'screenshot.jpg'));
 
   // 2. Analyse the saved content with AI.
@@ -280,8 +281,9 @@ function startBridge() {
       req.on('data', c => { size += c.length; if (size > 400 * 1024 * 1024) return req.destroy(); chunks.push(c); });
       req.on('end', async () => {
         try {
-          const { url, note, category, fetched } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
-          const r = await addLink(url, note, fetched && typeof fetched === 'object' ? fetched : null);
+          const { url, note, category, fetched, page } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+          const obj = (x) => x && typeof x === 'object' ? x : null;
+          const r = await addLink(url, note, obj(fetched), obj(page));
           if (!r.ok) return reply(400, r);
           if (category && !r.duplicate) store.update(r.link.id, { category, categoryLocked: true });
           reply(200, r);

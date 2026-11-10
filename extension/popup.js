@@ -30,10 +30,10 @@ $('#save').addEventListener('click', async () => {
   $('#save').disabled = true;
   try {
     if (googleKind(tab.url)) msg($('#msg'), 'Getting the file from Google…');
-    const res = await chrome.runtime.sendMessage({ type: 'save', item: { url: tab.url, note: $('#note').value.trim(), category: $('#cat').value || undefined } });
+    const res = await chrome.runtime.sendMessage({ type: 'save', tab: { id: tab.id, url: tab.url, windowId: tab.windowId }, item: { url: tab.url, note: $('#note').value.trim(), category: $('#cat').value || undefined } });
     if (!res || !res.ok) throw Object.assign(new Error((res && res.error) || 'Could not save'), { auth: res && res.auth });
     const r = res.r;
-    msg($('#msg'), r.queued ? 'Saved for later. It will reach Shelf when the app is open.' : r.refreshed ? 'Updated with the files from Google ✓' : r.duplicate ? 'Already on your shelf.' : r.withFiles ? 'Saved with the files from Google ✓' : 'Saved ✓', 'ok');
+    msg($('#msg'), r.queued ? 'Saved for later. It will reach Shelf when the app is open.' : r.refreshed ? 'Updated with what you see here ✓' : r.duplicate ? 'Already on your shelf.' : r.withFiles ? 'Saved with the files from Google ✓' : 'Saved ✓', 'ok');
     if (!r.queued) setTimeout(() => window.close(), 900);
   } catch (e) {
     if (e.auth) show(true);

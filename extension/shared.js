@@ -88,11 +88,30 @@ async function collectGoogle(url) {
   return Object.keys(out).length ? out : null;
 }
 
-// Saves a link; Google files go with their downloaded files so private ones work too.
-async function saveLinkWithFiles(item) {
-  let fetched = null;
+// The page exactly as you see it in this browser (signed in): a full snapshot, its text and a
+// screenshot. Shelf uses it when it can't open the page itself (private pages, sign-in walls).
+async function capturePage(tab) {
+  if (!tab || !tab.id || !/^https?:/.test(tab.url || '')) return null;
+  const page = {};
+  try {
+    const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => {
+      const meta = (n) => (document.querySelector(`meta[property="${n}"],meta[name="${n}"]`) || {}).content || '';
+      return { title: document.title, text: (document.body && document.body.innerText || '').slice(0, 400000), description: meta('og:description') || meta('description'), image: meta('og:image') };
+    } });
+    Object.assign(page, result);
+  } catch {}
+  try { const blob = await chrome.pageCapture.saveAsMHTML({ tabId: tab.id }); if (blob && blob.size < 60 * 1024 * 1024) page.mhtml = toBase64(await blob.arrayBuffer()); } catch {}
+  try { const shot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 80 }); page.screenshot = shot.split(',')[1]; } catch {}
+  return Object.keys(page).length ? page : null;
+}
+
+// Saves a link. Google files go with their downloaded files, and the page you're on goes with a
+// snapshot of what you see, so private ones are saved in full too.
+async function saveLinkWithFiles(item, tab) {
+  let fetched = null, page = null;
   try { fetched = await collectGoogle(item.url); } catch {}
-  if (!fetched) return saveLink(item);
-  try { return { ...(await shelfFetch('/add-files', { method: 'POST', body: JSON.stringify({ ...item, fetched }) })), withFiles: true, queued: false }; }
+  if (tab && tab.url === item.url) { try { page = await capturePage(tab); } catch {} }
+  if (!fetched && !page) return saveLink(item);
+  try { return { ...(await shelfFetch('/add-files', { method: 'POST', body: JSON.stringify({ ...item, fetched, page }) })), withFiles: !!fetched, queued: false }; }
   catch (e) { if (e.auth) throw e; return saveLink(item); }   // Shelf closed: queue the link itself
 }
