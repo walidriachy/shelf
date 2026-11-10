@@ -1,12 +1,44 @@
 {
   "manifest_version": 3,
   "name": "Shelf – Save Link",
-  "version": "1.0.0",
-  "description": "Send the page you're on to the Shelf desktop app.",
-  "permissions": ["activeTab", "storage", "contextMenus", "notifications", "alarms"],
-  "host_permissions": ["http://127.0.0.1:47321/*"],
-  "action": { "default_popup": "popup.html", "default_title": "Save to Shelf", "default_icon": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" } },
-  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" },
-  "background": { "service_worker": "background.js" },
-  "commands": { "_execute_action": { "suggested_key": { "default": "Alt+S" }, "description": "Save this page to Shelf" } }
+  "version": "1.1.0",
+  "description": "Send the page you're on to the Shelf desktop app. Google Docs, Sheets, Slides and Drive files you can open are sent with their files, so private ones work too.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:47321/*",
+    "https://docs.google.com/*",
+    "https://drive.google.com/*",
+    "https://*.googleusercontent.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Save to Shelf",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+S"
+      },
+      "description": "Save this page to Shelf"
+    }
+  }
 }

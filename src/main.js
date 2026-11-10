@@ -14,7 +14,7 @@ const { sync } = require('./sync');
 const library = require('./library');
 const r2 = require('./r2');
 
-const BRIDGE_PORT = 47321;
+const BRIDGE_PORT = +(globalThis.process.env.SHELF_BRIDGE_PORT || 47321);
 const ANALYSIS_VERSION = 3;
 let win, store, syncTimer, syncing = false, watcher, moving = false;
 
@@ -72,12 +72,20 @@ function normalizeInput(raw) {
   try { const u = new URL(url); return u.hostname.includes('.') ? unwrapRedirect(u).href : null; } catch { return null; }
 }
 
-async function addLink(raw, note = '') {
+// Files the Chrome extension downloaded for a link, waiting for that link to be read.
+const browserFiles = new Map();
+
+async function addLink(raw, note = '', fetched = null) {
   const url = normalizeInput(raw);
   if (!url) return { ok: false, error: 'That does not look like a link' };
   const existing = store.findByUrl(url);
-  if (existing) return { ok: true, duplicate: true, link: existing };
+  if (existing) {
+    // Sent again from the browser with its files (e.g. it was private before): read it again with them.
+    if (fetched) { browserFiles.set(existing.id, fetched); processLink(existing.id); }
+    return { ok: true, duplicate: true, refreshed: !!fetched, link: existing };
+  }
   const link = store.add({ url, note, title: new URL(url).hostname.replace(/^www\./, '') });
+  if (fetched) browserFiles.set(link.id, fetched);
   pushState();
   processLink(link.id);
   return { ok: true, link };
@@ -147,7 +155,8 @@ async function doProcess(id) {
   // Read into a scratch folder on this computer first, so a half-saved copy never reaches the cloud folder.
   const incoming = path.join(app.getPath('userData'), 'incoming', path.basename(dir));
   fs.rmSync(incoming, { recursive: true, force: true });
-  try { r = await read(link.url, incoming); }
+  const fetched = browserFiles.get(id); browserFiles.delete(id);
+  try { r = await read(link.url, incoming, { fetched }); }
   catch (e) { readError = e.message; }
 
   let unusable = !r || r.dead || (r.private && !(r.markdown || '').trim());
@@ -265,6 +274,21 @@ function startBridge() {
     if (req.url === '/ping') return reply(ok ? 200 : 401, { app: 'shelf', ok });
     if (!ok) return reply(401, { ok: false, error: 'Wrong connection key. Copy it from Shelf > Settings.' });
     if (req.method === 'GET' && req.url === '/categories') return reply(200, { ok: true, categories: store.categories() });
+    // A Google file sent by the extension together with the files it downloaded using the browser's sign-in.
+    if (req.method === 'POST' && req.url === '/add-files') {
+      const chunks = []; let size = 0;
+      req.on('data', c => { size += c.length; if (size > 400 * 1024 * 1024) return req.destroy(); chunks.push(c); });
+      req.on('end', async () => {
+        try {
+          const { url, note, category, fetched } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+          const r = await addLink(url, note, fetched && typeof fetched === 'object' ? fetched : null);
+          if (!r.ok) return reply(400, r);
+          if (category && !r.duplicate) store.update(r.link.id, { category, categoryLocked: true });
+          reply(200, r);
+        } catch (e) { reply(400, { ok: false, error: e.message }); }
+      });
+      return;
+    }
     if (req.method === 'POST' && req.url === '/add') {
       let body = '';
       req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });

@@ -12,8 +12,8 @@ Mac and Windows · Electron · MIT licensed · your data stays in your own folde
 
 Download the latest version from [Releases](https://github.com/walidriachy/shelf/releases/latest), or build it yourself (below).
 
-- **Mac:** open `Shelf-1.1.1-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.1.1-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
-- **Windows:** run `Shelf-Setup-1.1.1-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
+- **Mac:** open `Shelf-1.2.0-Mac-AppleSilicon.dmg` (M1/M2/M3/M4) or `Shelf-1.2.0-Mac-Intel.dmg` and drag Shelf into Applications. The app isn't signed yet, so the first time macOS says it can't be opened: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+- **Windows:** run `Shelf-Setup-1.2.0-Windows.exe`. If SmartScreen warns you, click **More info → Run anyway**.
 
 ## Saving links
 
@@ -45,7 +45,9 @@ The exact copies stay on the computer that saved them. Cloud sync carries each l
 
 Claude also writes **Shelf notes** for each link: a structured write-up of what's inside, specific tags, key points, what it offers, what to use it for, and pricing. Search and Ask look through all of it, including the full saved copy.
 
-If a link stops working, Shelf says so and keeps showing its saved copy. Private Notion pages and Google files can't be read until you sign in once under **Settings → Private pages**.
+If a link stops working, Shelf says so and keeps showing its saved copy.
+
+**Private Google files** (Docs, Sheets, Slides, Drive files only you or your team can open): save them with the Chrome extension. Google doesn't allow signing in inside other apps, so the extension downloads the file using the Google account you're signed in with in Chrome and hands it to Shelf: you get the full copy, Shelf Page and summary. Your password never touches Shelf. A file Shelf saved earlier as private gets updated when you save it again from Chrome. Private Notion pages: sign in once under **Settings → Private pages**.
 
 Claude chooses the category. It uses your existing ones when they fit and creates a new one when nothing does.
 
@@ -131,6 +133,8 @@ Tokens and keys stay in `settings.json` on each computer and are never put in th
 3. Click the Shelf icon → paste the connection key from Shelf → Settings → Chrome extension.
 
 Then: click the icon (or press **Alt+S**) to save the current page with an optional note and category, or right-click any page or link → **Save to Shelf**. If the desktop app is closed, links wait in the extension and are sent once it's open.
+
+For Google Docs, Sheets, Slides and Drive files, the extension also sends the files themselves, downloaded with your Chrome sign-in, so private ones are saved in full. That's why it asks to read docs.google.com and drive.google.com. Updating from an older version: open `chrome://extensions` and click the reload button on Shelf, then approve the new permission.
 
 ## Develop
 

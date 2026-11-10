@@ -264,31 +264,31 @@ function csvToTable(csv, maxRows = 300) {
 }
 
 // ---------- Google files ----------
-async function readGoogle(k, url, dir) {
+async function readGoogle(k, url, dir, fetchFn = get, fromBrowser = false) {
   const base = 'https://docs.google.com';
   const files = [];
   if (k.kind === 'gdoc') {
-    let r = await get(`${base}/document/d/${k.id}/export?format=md`);
-    if (!r.ok || looksLikeLogin(r)) r = await get(`${base}/document/d/${k.id}/export?format=txt`);
+    let r = await fetchFn(`${base}/document/d/${k.id}/export?format=md`);
+    if (!r.ok || looksLikeLogin(r)) r = await fetchFn(`${base}/document/d/${k.id}/export?format=txt`);
     if (!r.ok || looksLikeLogin(r)) return { private: true };
     const markdown = r.buf.toString('utf8');
-    try { const d = await get(`${base}/document/d/${k.id}/export?format=docx`); if (d.ok && !looksLikeLogin(d)) files.push({ name: save(dir, 'original.docx', d.buf), label: 'Word copy (.docx)' }); } catch {}
-    try { const p = await get(`${base}/document/d/${k.id}/export?format=pdf`); if (p.ok && !looksLikeLogin(p)) files.push({ name: save(dir, 'original.pdf', p.buf), label: 'PDF copy' }); } catch {}
+    try { const d = await fetchFn(`${base}/document/d/${k.id}/export?format=docx`); if (d.ok && !looksLikeLogin(d)) files.push({ name: save(dir, 'original.docx', d.buf), label: 'Word copy (.docx)' }); } catch {}
+    try { const p = await fetchFn(`${base}/document/d/${k.id}/export?format=pdf`); if (p.ok && !looksLikeLogin(p)) files.push({ name: save(dir, 'original.pdf', p.buf), label: 'PDF copy' }); } catch {}
     // The HTML export keeps the Doc's formatting, colours, tables and pictures: Shelf builds its own page from it.
     let docHtml = '';
-    try { const h = await get(`${base}/document/d/${k.id}/export?format=html`); if (h.ok && !looksLikeLogin(h) && /html/.test(h.type)) docHtml = h.buf.toString('utf8'); } catch {}
+    try { const h = await fetchFn(`${base}/document/d/${k.id}/export?format=html`); if (h.ok && !looksLikeLogin(h) && /html/.test(h.type)) docHtml = h.buf.toString('utf8'); } catch {}
     const title = (markdown.match(/^#\s+(.+)$/m) || [])[1] || markdown.trim().split('\n')[0].slice(0, 120);
     return { title, markdown, files, docHtml, source: 'Google Doc' };
   }
   if (k.kind === 'gsheet') {
-    const x = await get(`${base}/spreadsheets/d/${k.id}/export?format=xlsx`);
+    const x = await fetchFn(`${base}/spreadsheets/d/${k.id}/export?format=xlsx`);
     if (!x.ok || looksLikeLogin(x)) return { private: true };
     files.push({ name: save(dir, 'original.xlsx', x.buf), label: 'Spreadsheet copy (.xlsx)' });
     // Find every tab so the text copy covers the whole spreadsheet, not just the first sheet.
     let sheets = [];
     let title = '';
     try {
-      const h = (await get(`${base}/spreadsheets/d/${k.id}/htmlview`)).buf.toString('utf8');
+      const h = (await fetchFn(`${base}/spreadsheets/d/${k.id}/htmlview`)).buf.toString('utf8');
       title = ((h.match(/<title>([^<]*)<\/title>/) || [])[1] || '').replace(/ - Google (Drive|Sheets)$/, '');
       for (const m of h.matchAll(/name:\s*"((?:[^"\\]|\\.)*)"[^}]*?gid:\s*"(\d+)"/g)) sheets.push({ name: JSON.parse(`"${m[1]}"`), gid: m[2] });
     } catch {}
@@ -296,23 +296,23 @@ async function readGoogle(k, url, dir) {
     const parts = [];
     for (const s of sheets.slice(0, 20)) {
       try {
-        const c = await get(`${base}/spreadsheets/d/${k.id}/export?format=csv&gid=${s.gid}`);
+        const c = await fetchFn(`${base}/spreadsheets/d/${k.id}/export?format=csv&gid=${s.gid}`);
         if (c.ok && !looksLikeLogin(c)) parts.push(`## ${s.name}\n\n${csvToTable(c.buf.toString('utf8'))}`);
       } catch {}
     }
     // Also keep a snapshot of the sheet exactly as it looks.
-    try { await render(`${base}/spreadsheets/d/${k.id}/htmlview`, dir, { wait: 2500 }); } catch {}
+    if (!fromBrowser) { try { await render(`${base}/spreadsheets/d/${k.id}/htmlview`, dir, { wait: 2500 }); } catch {} }
     return { title, markdown: parts.join('\n\n'), files, source: 'Google Sheet' };
   }
   if (k.kind === 'gslides') {
-    const t = await get(`${base}/presentation/d/${k.id}/export/txt`);
+    const t = await fetchFn(`${base}/presentation/d/${k.id}/export/txt`);
     if (!t.ok || looksLikeLogin(t)) return { private: true };
-    try { const p = await get(`${base}/presentation/d/${k.id}/export/pdf`); if (p.ok && !looksLikeLogin(p)) files.push({ name: save(dir, 'original.pdf', p.buf), label: 'Slides as PDF' }); } catch {}
+    try { const p = await fetchFn(`${base}/presentation/d/${k.id}/export/pdf`); if (p.ok && !looksLikeLogin(p)) files.push({ name: save(dir, 'original.pdf', p.buf), label: 'Slides as PDF' }); } catch {}
     const markdown = t.buf.toString('utf8');
     return { title: markdown.trim().split('\n')[0].slice(0, 120), markdown, files, source: 'Google Slides' };
   }
   if (k.kind === 'gdrive') {
-    const r = await get(`https://drive.google.com/uc?export=download&id=${k.id}`);
+    const r = await fetchFn(`https://drive.google.com/uc?export=download&id=${k.id}`);
     if (!r.ok || looksLikeLogin(r)) return { private: true };
     if (r.type.includes('pdf')) return readPdf(r, dir, 'Google Drive PDF');
     const name = (r.disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i) || [])[1] || 'original.bin';
@@ -478,13 +478,27 @@ async function render(url, dir, { wait = 1500, notionCapture = false } = {}) {
 }
 
 // Main entry: returns everything Shelf knows about the link, and writes the saved copy into `dir`.
-async function read(url, dir) {
+// Files the Chrome extension downloaded with the browser's Google sign-in: { requested url: response }.
+function fetchedGetter(fetched) {
+  return async (u) => {
+    const r = fetched[u];
+    if (!r) return { ok: false, status: 404, url: u, type: '', buf: Buffer.alloc(0), disposition: '' };
+    return { ok: !!r.ok, status: r.status || 0, url: r.url || u, type: String(r.type || '').toLowerCase(), buf: Buffer.from(r.data || '', 'base64'), disposition: r.disposition || '' };
+  };
+}
+
+async function read(url, dir, opts = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const k = kindOf(url);
   let result = null;
 
   if (k.kind.startsWith('g')) {
-    try { result = await readGoogle(k, url, dir); } catch (e) { result = null; }
+    if (opts.fetched) {
+      try { result = await readGoogle(k, url, dir, fetchedGetter(opts.fetched), true); } catch (e) { result = null; }
+      if (result && !result.private) { result.viaBrowser = true; result.source = (result.source || 'Google file') + ' · via your browser'; }
+      else result = null;   // the browser couldn't open it either: try the normal way below
+    }
+    if (!result) { try { result = await readGoogle(k, url, dir); } catch (e) { result = null; } }
     if (result && result.private) {
       return { private: true, kind: k.kind, url, markdown: '', files: [], source: 'Private Google file' };
     }
