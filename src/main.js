@@ -379,7 +379,12 @@ ipcMain.handle('add-category', (_, name) => { const c = store.addCategory(name);
 ipcMain.handle('remove-category', (_, name) => { const c = store.removeCategory(name); pushState(); scheduleSync(); return c; });
 ipcMain.handle('settings', (_, patch) => {
   if (patch && patch.gistToken !== undefined && patch.gistToken !== store.settings().gistToken) patch.gistId = '';
-  if (patch) { delete patch.libraryDir; store.setSettings(patch); }
+  if (patch) {
+    delete patch.libraryDir;
+    // Pasted keys and tokens never contain spaces; drop line breaks a wrapped Terminal line adds.
+    for (const k of Object.keys(patch)) if (/token|key|secret/i.test(k) && typeof patch[k] === 'string') patch[k] = patch[k].replace(/\s+/g, '');
+    store.setSettings(patch);
+  }
   if (patch && (patch.gistToken || patch.r2On || patch.r2AccessKeyId)) scheduleSync(200);
   if (patch && (patch.claudeToken || patch.provider || patch.replicateToken || patch.claudeModel)) setTimeout(retryAiFailures, 500);
   return publicSettings();

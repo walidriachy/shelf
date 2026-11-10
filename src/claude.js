@@ -55,7 +55,9 @@ function runClaude(settings, system, prompt) {
     '--tools', '', '--no-session-persistence', '--strict-mcp-config', '--setting-sources', '', '--disable-slash-commands',
   ];
   const env = { ...process.env, PATH: [path.dirname(bin), process.env.PATH || '', isWin ? '' : '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin'].filter(Boolean).join(path.delimiter) };
-  if (settings.claudeToken) env.CLAUDE_CODE_OAUTH_TOKEN = settings.claudeToken;
+  // Tokens copied from Terminal often carry a line break where the line wrapped: remove all spaces.
+  const token = String(settings.claudeToken || '').replace(/\s+/g, '');
+  if (token) env.CLAUDE_CODE_OAUTH_TOKEN = token;
 
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { cwd: os.tmpdir(), env, shell: isWin && bin.endsWith('.cmd'), windowsHide: true });
