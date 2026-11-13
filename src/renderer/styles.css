@@ -272,3 +272,10 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line-2); borde
 .sharebox .row-btns { flex: none; }
 .sharelink { display: flex; gap: 6px; margin-top: 8px; }
 .sharelink input { flex: 1; min-width: 0; font-size: 12px; padding: 5px 8px; }
+
+/* Adding files from this computer */
+.top .addfile { height: 38px; padding: 0 14px; white-space: nowrap; flex: none; }
+.drophint { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bg) 82%, transparent); pointer-events: none; }
+.drophint > div { border: 2px dashed var(--muted); border-radius: 18px; padding: 34px 54px; font-size: 20px; font-weight: 650; text-align: center; }
+.drophint span { display: block; margin-top: 6px; font-size: 13px; font-weight: 400; color: var(--muted); }
+body.dropping .drophint { display: flex; }

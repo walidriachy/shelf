@@ -7,7 +7,7 @@ const { Store } = require('./store');
 const { fetchMeta } = require('./meta');
 const { analyze, ask, provider, aiWorks } = require('./ai');
 const { findClaude } = require('./claude');
-const { read, get: fetchUrl, openSignIn, openCopy, kindOf, isNotion } = require('./reader');
+const { read, readLocalFile, get: fetchUrl, openSignIn, openCopy, kindOf, isNotion } = require('./reader');
 const shelfPage = require('./shelfpage');
 const isYouTube = (u) => { try { return kindOf(u).kind === 'youtube'; } catch { return false; } };
 const { sync } = require('./sync');
@@ -92,6 +92,33 @@ async function addLink(raw, note = '', fetched = null, page = null) {
   return { ok: true, link };
 }
 
+// Files attached from this computer (a PDF that has no link). Shelf copies the file into its library, so the
+// card keeps working if the original is moved or deleted. Its address is shelf-file://file/<fingerprint>/<name>.
+const FILE_TYPES = /\.(pdf|docx|txt|md|markdown)$/i;
+const isFileLink = (u) => /^shelf-file:/i.test(String(u || ''));
+const fileNameOf = (l) => (l.file && l.file.name) || decodeURIComponent(String(l.url).split('/').pop() || 'File');
+const pendingFiles = new Map(); // link id -> where the file to copy is
+async function addFile(src, note = '') {
+  src = String(src || '');
+  const name = path.basename(src);
+  if (!FILE_TYPES.test(name)) return { ok: false, error: 'Shelf can keep PDF, Word (.docx) and text files' };
+  let st; try { st = fs.statSync(src); } catch { return { ok: false, error: 'That file could not be found' }; }
+  if (!st.isFile()) return { ok: false, error: 'That is a folder, not a file' };
+  if (st.size > 300 * 1024 * 1024) return { ok: false, error: 'That file is too big (300 MB at most)' };
+  const hash = await new Promise((resolve, reject) => {
+    const h = require('crypto').createHash('sha256');
+    fs.createReadStream(src).on('data', d => h.update(d)).on('end', () => resolve(h.digest('hex').slice(0, 16))).on('error', reject);
+  }).catch(() => '');
+  if (!hash) return { ok: false, error: 'That file could not be read' };
+  const existing = store.links().find(l => isFileLink(l.url) && String(l.url).split('/')[3] === hash);
+  if (existing) return { ok: true, duplicate: true, link: existing };
+  const link = store.add({ url: `shelf-file://file/${hash}/${encodeURIComponent(name)}`, note, title: path.basename(name, path.extname(name)), file: { name, size: st.size } });
+  pendingFiles.set(link.id, src);
+  pushState();
+  processLink(link.id);
+  return { ok: true, link };
+}
+
 // Links whose AI step failed (Claude signed out, offline, …) are finished automatically once AI answers again.
 let retrying = false;
 async function retryAiFailures() {
@@ -148,7 +175,8 @@ async function doProcess(id) {
   store.update(id, { status: 'pending', error: '' });
   pushState();
   const dir = archiveDir(id);
-  const host = (() => { try { return new URL(link.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+  const isFile = isFileLink(link.url);
+  const host = isFile ? '' : (() => { try { return new URL(link.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
   const hadCopy = fs.existsSync(path.join(dir, 'content.md'));
 
   // 1. Read the link and save Shelf's own copy.
@@ -157,8 +185,15 @@ async function doProcess(id) {
   const incoming = path.join(app.getPath('userData'), 'incoming', path.basename(dir));
   fs.rmSync(incoming, { recursive: true, force: true });
   const sent = browserFiles.get(id) || {}; browserFiles.delete(id);
-  try { r = await read(link.url, incoming, { fetched: sent.fetched, page: sent.page, libraryDir: store.libraryDir }); }
-  catch (e) { readError = e.message; }
+  try {
+    if (isFile) {
+      // First time: the file the user picked. Re-read: Shelf's own copy of it.
+      let src = pendingFiles.get(id); pendingFiles.delete(id);
+      if (!src || !fs.existsSync(src)) { const own = (() => { try { return fs.readdirSync(dir).find(f => f.startsWith('original')); } catch { return ''; } })(); src = own ? path.join(dir, own) : ''; }
+      if (!src) throw new Error('the file is no longer there, add it again');
+      r = await readLocalFile(src, fileNameOf(link), incoming);
+    } else r = await read(link.url, incoming, { fetched: sent.fetched, page: sent.page, libraryDir: store.libraryDir });
+  } catch (e) { readError = e.message; }
 
   let unusable = !r || r.dead || r.driveView || (r.private && !(r.markdown || '').trim());
   // If a re-read comes back far smaller than the copy we have, the page probably didn't load fully: keep the fuller copy.
@@ -188,19 +223,19 @@ async function doProcess(id) {
     else if (hadCopy) offline = r && r.private ? 'The original is now private. Showing Shelf’s saved copy.' : 'The original link no longer works. Showing Shelf’s saved copy.';
     else if (r && r.private) offline = 'This page is private, so only the address was saved. Use Settings → Sign in to sites, then re-read it.';
     else if (r && r.dead) offline = 'The page could not be found.';
-    else offline = 'Could not open the page' + (readError ? ` (${readError})` : '') + '.';
+    else offline = (isFile ? 'Could not read the file' : 'Could not open the page') + (readError ? ` (${readError})` : '') + '.';
   }
 
   // Fill in basics a rendered page may lack (titles/images for Google files and PDFs).
   let meta = {};
-  if (!r || !r.title || (!r.image && r.kind === 'web')) { try { meta = await fetchMeta(link.url); } catch {} }
+  if (!isFile && (!r || !r.title || (!r.image && r.kind === 'web'))) { try { meta = await fetchMeta(link.url); } catch {} }
   // A private page's preview info is the sign-in screen's ("Sign in", accounts.google.com): don't use it.
   if (r && (r.private || r.viaBrowser)) meta = {};
   const shot = fs.existsSync(path.join(dir, 'screenshot.jpg'));
 
   // 2. Analyse the saved content with AI.
   const info = {
-    url: link.url, host, source: r?.source || (hadCopy ? link.source : ''),
+    url: isFile ? fileNameOf(link) : link.url, host, source: r?.source || (hadCopy ? link.source : ''),
     title: (r && (!unusable || r.driveView) && r.title) || link.title || meta.title || host,
     description: (r && r.description) || meta.description || link.description || '',
     content: contentOf(id), note: link.note, problem: offline, related: relatedTitles(link),
@@ -337,6 +372,14 @@ ipcMain.handle('init', () => ({
   settings: publicSettings(), platform: process.platform, port: BRIDGE_PORT,
 }));
 ipcMain.handle('add', (_, url, note) => addLink(url, note));
+ipcMain.handle('add-file', (_, file, note) => addFile(file, note));
+ipcMain.handle('pick-file', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Add files to Shelf', properties: ['openFile', 'multiSelections'], filters: [{ name: 'PDF, Word and text files', extensions: ['pdf', 'docx', 'txt', 'md', 'markdown'] }] });
+  if (r.canceled) return [];
+  const out = [];
+  for (const f of r.filePaths) out.push(await addFile(f));
+  return out;
+});
 ipcMain.handle('update', (_, id, patch) => {
   if ('category' in patch) patch.categoryLocked = true;
   const l = store.update(id, patch); pushState(); scheduleSync(); return l;
@@ -403,7 +446,11 @@ ipcMain.handle('open-copy', (_, id, which) => {
 });
 ipcMain.handle('show-folder', (_, id) => { const d = archiveDir(id); if (fs.existsSync(d)) shell.showItemInFolder(path.join(d, fs.readdirSync(d)[0] || '')); return true; });
 ipcMain.handle('signin', (_, url) => { openSignIn(url); return true; });
-ipcMain.handle('open', (_, url) => shell.openExternal(url));
+ipcMain.handle('open', (_, url) => {
+  // An attached file has no web address: open Shelf's copy of it.
+  if (isFileLink(url)) { const l = store.links().find(x => x.url === url); const f = l && bestCopy(l.id); return f ? openSaved(l.id, f) : 'File not found'; }
+  return shell.openExternal(url);
+});
 ipcMain.handle('add-category', (_, name) => { const c = store.addCategory(name); pushState(); scheduleSync(); return c; });
 ipcMain.handle('remove-category', (_, name) => { const c = store.removeCategory(name); pushState(); scheduleSync(); return c; });
 ipcMain.handle('settings', (_, patch) => {

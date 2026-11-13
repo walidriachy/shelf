@@ -1,6 +1,13 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+// What a card says where a website's name would go: the site, or "PDF file" for a file added from this computer.
+const isFile = (l) => !!l.file || /^shelf-file:/.test(l.url || '');
+const fileKind = (l) => { const e = ((l.file && l.file.name) || '').split('.').pop().toLowerCase(); return e === 'pdf' ? 'PDF file' : e === 'docx' ? 'Word file' : 'Text file'; };
+const site = (l) => isFile(l) ? fileKind(l) : host(l.url);
+// The "PDFs & files" section: every PDF Shelf holds (attached or from a link) and every attached file.
+const FILES_VIEW = 'PDFs & files';
+const inFiles = (l) => isFile(l) || (l.files || []).includes('original.pdf');
 
 let links = [], categories = [], settings = {}, view = 'All', sort = 'new', filter = '', editing = null;
 
@@ -17,17 +24,18 @@ function renderCats() {
       <span>${esc(name)}</span><span class="n ${removable ? 'has-x' : ''}">${n || ''}</span>
       ${removable ? `<span class="x" data-remove="${esc(name)}" title="Remove category">✕</span>` : ''}
     </button>`;
-  $('#cats').innerHTML = row('All', links.length) + row('Recent', '') + '<div class="cat-sep"></div>' +
+  $('#cats').innerHTML = row('All', links.length) + row('Recent', '') + row(FILES_VIEW, links.filter(inFiles).length) + '<div class="cat-sep"></div>' +
     used.map(c => row(c, counts[c], c !== 'Other')).join('');
 }
 
 function visibleLinks() {
   let list = links;
   if (view === 'Recent') list = list.filter(l => Date.now() - l.createdAt < 7 * 864e5);
+  else if (view === FILES_VIEW) list = list.filter(inFiles);
   else if (view !== 'All') list = list.filter(l => l.category === view);
   if (filter) {
     const q = filter.toLowerCase();
-    list = list.filter(l => [l.title, l.url, l.summary, l.description, l.note, l.offers, l.category, ...(l.tags || [])].join(' ').toLowerCase().includes(q));
+    list = list.filter(l => [l.title, l.url, l.file && l.file.name, l.summary, l.description, l.note, l.offers, l.category, ...(l.tags || [])].join(' ').toLowerCase().includes(q));
   }
   list = list.slice();
   if (sort === 'az') list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
@@ -37,7 +45,7 @@ function visibleLinks() {
 
 const shotUrl = (l) => l.shot ? `shelf://archive/${l.id}/screenshot.jpg` : '';
 function thumb(l) {
-  const letter = esc((l.title || host(l.url) || '?').trim()[0]?.toUpperCase() || '?');
+  const letter = esc((l.title || site(l) || '?').trim()[0]?.toUpperCase() || '?');
   if (!l.image && l.shot) return `<img class="cover" src="${esc(shotUrl(l))}" loading="lazy" data-fallback="${esc(l.favicon)}" data-letter="${letter}">`;
   if (l.image) return `<img class="cover" src="${esc(l.image)}" loading="lazy" data-fallback="${esc(shotUrl(l) || l.favicon)}" data-letter="${letter}">`;
   if (l.favicon) return `<img class="fallback" src="${esc(l.favicon)}" loading="lazy" data-letter="${letter}">`;
@@ -50,8 +58,8 @@ function card(l) {
     <div class="thumb">${thumb(l)}</div>
     <button class="edit" data-edit="${l.id}">Edit</button>
     <div class="body">
-      <div class="site">${l.favicon ? `<img src="${esc(l.favicon)}">` : ''}<span>${esc(host(l.url))}</span></div>
-      <div class="title">${esc(l.title || host(l.url))}</div>
+      <div class="site">${l.favicon ? `<img src="${esc(l.favicon)}">` : ''}<span>${esc(site(l))}</span></div>
+      <div class="title">${esc(l.title || site(l))}</div>
       ${pending ? '<div class="status">Reading and saving a copy…</div>' : ''}
       ${l.offline ? `<div class="err">${esc(l.offline)}</div>` : ''}
       ${l.summary ? `<div class="summary">${esc(l.summary)}</div>` : (!pending && l.description ? `<div class="summary">${esc(l.description)}</div>` : '')}
@@ -99,6 +107,29 @@ $('#addForm').addEventListener('submit', async (e) => {
     if (!r.ok) toast(r.error);
     else if (r.duplicate) toast('Already on your shelf');
   }
+});
+
+// Files from this computer: the Add file button, or drop them anywhere on the window.
+function fileResult(rs) {
+  const ok = rs.filter(r => r && r.ok), dup = ok.filter(r => r.duplicate).length, bad = rs.find(r => r && !r.ok);
+  if (bad && !ok.length) return toast(bad.error);
+  if (!ok.length) return;
+  view = FILES_VIEW; render();
+  toast(dup === ok.length ? 'Already on your shelf' : ok.length - dup > 1 ? `Saved ${ok.length - dup} files` : 'Saved. Shelf is reading it…');
+}
+$('#addFile').addEventListener('click', async () => fileResult(await window.shelf.pickFile()));
+document.addEventListener('dragstart', (e) => e.preventDefault());   // nothing inside the window is draggable; only files from outside
+let dragDepth = 0;
+const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+document.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; document.body.classList.add('dropping'); });
+document.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+document.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dropping'); } });
+document.addEventListener('drop', async (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove('dropping');
+  const rs = [];
+  for (const f of e.dataTransfer.files) { const p = window.shelf.pathOf(f); rs.push(p ? await window.shelf.addFile(p) : { ok: false, error: 'That file could not be read' }); }
+  fileResult(rs);
 });
 
 // Paste a link anywhere in the window (outside inputs) to save it.
@@ -201,7 +232,7 @@ $('#askForm').addEventListener('submit', async (e) => {
     const box = document.createElement('div'); box.className = 'hits';
     box.innerHTML = found.map(l => `<div class="hit" data-id="${l.id}">
       ${l.image || l.shot || l.favicon ? `<img src="${esc(l.image || shotUrl(l) || l.favicon)}">` : '<img>'}
-      <div><div class="t">${esc(l.title)}</div><div class="s">${esc(l.summary || l.description || host(l.url))}</div></div></div>`).join('');
+      <div><div class="t">${esc(l.title)}</div><div class="s">${esc(l.summary || l.description || site(l))}</div></div></div>`).join('');
     box.addEventListener('click', (ev) => { const h = ev.target.closest('.hit'); if (h) openDetail(h.dataset.id); });
     $('#chat').appendChild(box); $('#chat').scrollTop = 1e9;
   }
@@ -434,7 +465,7 @@ function renderRelated() {
   const rel = (l.related || []).map(liveLink).filter(Boolean);
   $('#dRelList').innerHTML = rel.length ? rel.map(o => `<div class="rel" data-rel="${esc(o.id)}">
       <img src="${esc(o.favicon || '')}" alt="" onerror="this.style.visibility='hidden'">
-      <div class="rel-main"><div class="rel-title">${esc(o.title || host(o.url))}</div><div class="muted small">${esc(host(o.url))}${o.type ? ' · ' + esc(o.type) : ''}${o.status === 'pending' ? ' · reading…' : ''}</div></div>
+      <div class="rel-main"><div class="rel-title">${esc(o.title || site(o))}</div><div class="muted small">${esc(site(o))}${o.type ? ' · ' + esc(o.type) : ''}${o.status === 'pending' ? ' · reading…' : ''}</div></div>
       <button class="ghost small-btn" data-relopen="${esc(o.id)}">Open</button>
       <button class="icon" data-relx="${esc(o.id)}" title="Disconnect">✕</button>
     </div>`).join('') : `<p class="muted small rel-empty">${l.video ? 'Got a PDF, Notion page or doc that explains this video? Paste its link below to keep them together.' : 'Nothing connected yet. Paste a link or search your saved links below.'}</p>`;
@@ -486,8 +517,9 @@ async function openDetail(id) {
   detailId = id;
   detailData = await window.shelf.detail(id);
   $('#dFav').src = l.favicon || ''; $('#dFav').style.visibility = l.favicon ? 'visible' : 'hidden';
-  $('#dHost').textContent = host(l.url) + (l.source ? ` · ${l.source}` : '');
-  $('#dTitle').textContent = l.title || host(l.url);
+  $('#dHost').textContent = isFile(l) ? (l.source || fileKind(l)) + ' · ' + l.file.name : host(l.url) + (l.source ? ` · ${l.source}` : '');
+  $('#dTitle').textContent = l.title || site(l);
+  $('#dOpen').textContent = isFile(l) ? 'Open file' : 'Open link';
   $('#dOffline').textContent = l.offline || '';
   $('#dOffline').classList.toggle('hidden', !l.offline);
   $('#dPills').innerHTML = [`<span class="pill cat-pill">${esc(l.category)}</span>`, l.type && `<span class="pill type">${esc(l.type)}</span>`, l.pricing && l.pricing !== 'unknown' && `<span class="pill">${esc(l.pricing)}</span>`, l.archivedAt && `<span class="pill">saved ${new Date(l.archivedAt).toLocaleDateString()}</span>`].filter(Boolean).join('');

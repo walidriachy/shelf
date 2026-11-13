@@ -25,6 +25,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           <input id="addInput" placeholder="Paste a link and press Enter" autocomplete="off" spellcheck="false">
         </form>
+        <button id="addFile" class="ghost addfile" title="Add a PDF, Word or text file from this computer. You can also drop files anywhere on this window.">Add file</button>
         <div class="filter">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="filterInput" placeholder="Filter" autocomplete="off">
@@ -45,7 +46,7 @@
       <div id="empty" class="empty hidden">
         <div class="empty-mark"></div>
         <h2>Nothing on the shelf yet</h2>
-        <p>Paste a link above. Shelf reads the page, works out what it offers, and files it for you.</p>
+        <p>Paste a link above, or drop a PDF here. Shelf reads it, works out what it offers, and files it for you.</p>
         <p class="muted small">Tip: copy a link anywhere and press <kbd id="kbd">⌘ ⇧ L</kbd> to save it without opening Shelf.</p>
       </div>
     </main>
@@ -242,5 +243,6 @@
 
   <div id="toast" class="toast"></div>
   <script src="app.js"></script>
+  <div id="dropHint" class="drophint"><div>Drop to add to Shelf<span>PDF, Word and text files</span></div></div>
 </body>
 </html>

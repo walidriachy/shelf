@@ -524,6 +524,24 @@ async function readDriveLocal(id, url, dir) {
   return { title: f.name, markdown, files: [{ name: save(dir, 'original' + ext, buf), label: `Original file (${f.name})` }], source: 'Google Drive file · via Drive for desktop' };
 }
 
+// A file attached from this computer (no link): Shelf keeps its own copy and reads it like a linked one.
+async function readLocalFile(src, name, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const buf = await fs.promises.readFile(src);
+  const ext = path.extname(name).toLowerCase();
+  let out;
+  if (ext === '.pdf' || buf.slice(0, 5).toString() === '%PDF-') {
+    out = await readPdf({ buf, url: 'file:///' + encodeURIComponent(name) }, dir, 'PDF file');
+  } else if (ext === '.docx') {
+    out = { title: path.basename(name, ext), markdown: await docxText(name, buf), files: [{ name: save(dir, 'original.docx', buf), label: `Original file (${name})` }], source: 'Word file' };
+  } else {
+    out = { title: path.basename(name, ext), markdown: buf.toString('utf8').slice(0, MAX_CONTENT), files: [{ name: save(dir, 'original' + (ext || '.txt'), buf), label: `Original file (${name})` }], source: 'Text file' };
+  }
+  out.kind = 'file';
+  if (out.markdown) save(dir, 'content.md', out.markdown);
+  return out;
+}
+
 async function readOwn(url, dir, opts = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const k = kindOf(url);
@@ -648,4 +666,4 @@ function openCopy(file, title) {
 
 const isNotion = (u) => { try { return kindOf(u).kind === 'notion'; } catch { return false; } };
 
-module.exports = { read, get, openSignIn, openCopy, kindOf, csvToTable, youtubeId, isNotion };
+module.exports = { read, readLocalFile, get, openSignIn, openCopy, kindOf, csvToTable, youtubeId, isNotion };

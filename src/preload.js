@@ -1,10 +1,13 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const call = (ch) => (...a) => ipcRenderer.invoke(ch, ...a);
 
 contextBridge.exposeInMainWorld('shelf', {
   init: call('init'),
   add: call('add'),
+  addFile: call('add-file'),
+  pickFile: call('pick-file'),
+  pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch { return ''; } },
   update: call('update'),
   remove: call('remove'),
   reprocess: call('reprocess'),
